@@ -16,7 +16,15 @@ const getCandidateVideos = () => {
 const detectPrimaryVideo = () => {
   let looping = true;
   let guessedPrimaryVideo = null;
-  setTimeout(async () => {
+  // Create a promise that will resolve when we have found at least
+  // one candidate video. However, we keep updating our best guess
+  // even after this promise resolves, until the caller of
+  // detectPrimaryVideo invokes the returned function, at which point
+  // we return the current best guess and abort further calculations
+  // (and, we block until at least one guess is found, if none has
+  // been found yet).
+  const foundOne = new Promise(async (resolve) => {
+    log(`Video detection: searching for active videos`);
     const lastTimes = new Map();
     while (looping) {
       const activeVideos = new Set();
@@ -29,19 +37,47 @@ const detectPrimaryVideo = () => {
         }
         lastTimes.set(video, video.currentTime);
       }
-      log(`Video detection: found ${activeVideos.size} active videos`);
-      guessedPrimaryVideo = [...activeVideos.values()][0];
+      log(
+        `Video detection: found ${
+          activeVideos.size
+        } active videos ${JSON.stringify(
+          [...activeVideos].map((video) => video.id || "(anonymous <video>)")
+        )}`
+      );
+      if (activeVideos.size > 0) {
+        guessedPrimaryVideo = [...activeVideos.values()][0];
+        resolve();
+      }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-  }, 0);
-  return () => {
-    looping = false;
-    return guessedPrimaryVideo;
+  });
+  return {
+    get: () =>
+      foundOne.then(() => {
+        log(
+          `Video detection: locking in best guess for active video ${JSON.stringify(
+            guessedPrimaryVideo.id || "(anonymous <video>)"
+          )}`
+        );
+        looping = false;
+        return guessedPrimaryVideo;
+      }),
   };
 };
 
-const instrumentVideo = (video) => {
-  //
+const instrumentVideo = (video, callback) => {
+  log(`Video instrumentation: installing event listeners`);
+  video.addEventListener("play", () => callback({ event: "play" }));
+  video.addEventListener("pause", () => callback({ event: "pause" }));
+  video.addEventListener("seeking", (evt) =>
+    callback({ event: "seek", timestamp: evt.timeStamp })
+  );
 };
 
-detectPrimaryVideo();
+detectPrimaryVideo()
+  .get()
+  .then((video) =>
+    instrumentVideo(video, (event) => {
+      log(`Video instrumentation: got event ${JSON.stringify(event)}`);
+    })
+  );
