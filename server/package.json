@@ -1,8 +1,8 @@
 {
-  "name": "threeeight-server",
+  "name": "three-eight-server",
   "version": "1.0.0",
   "description": "Simple video synchronization service",
-  "author": "Radian LLC <contact+threeeight@radian.codes>",
+  "author": "Radian LLC <contact+three-eight@radian.codes>",
   "license": "MIT",
   "type": "module",
   "dependencies": {
