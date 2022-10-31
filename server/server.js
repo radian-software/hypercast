@@ -7,6 +7,19 @@ import { tinyws } from "tinyws";
 
 const app = express();
 
+app.use(async (req, res, next) => {
+  if (
+    process.env.AUTH_TOKEN &&
+    req.headers.authorization !== `Bearer ${process.env.AUTH_TOKEN}`
+  ) {
+    res
+      .status(401)
+      .send("received request without correct authorization token");
+    return;
+  }
+  next();
+});
+
 app.use(tinyws());
 
 app.get("/", async (_req, res) => {
