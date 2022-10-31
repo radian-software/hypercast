@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "ThreeEight",
+  "version": "1.0.0",
+  "description": "Simple video synchronization service",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.hulu.com/*",
+        "https://*.netflix.com/*",
+        "https://*.hbomax.com/*"
+      ],
+      "js": ["content-script.js"]
+    }
+  ]
+}
