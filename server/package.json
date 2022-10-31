@@ -1,0 +1,10 @@
+{
+  "name": "threeeight-server",
+  "version": "1.0.0",
+  "description": "Simple video synchronization service",
+  "author": "Radian LLC <contact+threeeight@radian.codes>",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
