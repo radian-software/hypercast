@@ -3,6 +3,7 @@
   "name": "ThreeEight",
   "version": "1.0.0",
   "description": "Simple video synchronization service",
+  "options_page": "options.html",
   "content_scripts": [
     {
       "matches": [
@@ -12,5 +13,6 @@
       ],
       "js": ["content-script.js"]
     }
-  ]
+  ],
+  "permissions": ["storage"]
 }

@@ -1,0 +1,35 @@
+<!-- https://developer.chrome.com/extensions/options -->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ThreeEight</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
+      integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <div class="container" id="form">
+      <div class="form-group">
+        <label for="accessTokenInput">Access token</label>
+        <input type="text" class="form-control" id="accessTokenInput" />
+      </div>
+      <div class="form-group">
+        <label for="roomIdInput">Room ID</label>
+        <input type="text" class="form-control" id="roomIdInput" />
+      </div>
+      <div class="form-group">
+        <label for="clientIdInput">Client ID</label>
+        <input type="text" class="form-control" id="clientIdInput" />
+      </div>
+      <button type="submit" class="btn btn-primary" id="saveButton" disabled>
+        Save
+      </button>
+    </div>
+    <script src="options.js"></script>
+  </body>
+</html>
