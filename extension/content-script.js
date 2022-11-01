@@ -74,10 +74,111 @@ const instrumentVideo = (video, callback) => {
   );
 };
 
+const withExponentialBackoff = async (
+  task,
+  initialDelaySeconds,
+  retryMultiplier
+) => {
+  try {
+    return await task();
+  } catch (err) {
+    await new Promise((resolve) =>
+      setTimeout(resolve, initialDelaySeconds * 1000 * Math.random())
+    );
+    return withExponentialBackoff(
+      task,
+      initialDelaySeconds * retryMultiplier,
+      retryMultiplier
+    );
+  }
+};
+
+const dialWebsocket = (addr, onmessage, options) => {
+  let socket = null;
+  let numConns = 0;
+  let redial;
+  const tryRedial = async () => {
+    numConns += 1;
+    if (socket) {
+      socket.close();
+      socket = null;
+    }
+    log(`Websocket: trying to connect to ${addr}`);
+    socket = new WebSocket(addr, options);
+    await new Promise((resolve, reject) => {
+      socket.onopen = resolve;
+      socket.onerror = (err) => {
+        log(`Websocket: failed to connect, will retry`);
+        reject(err);
+      };
+    });
+    log(`Websocket: connected to ${addr}`);
+    let savedNumConns = numConns;
+    socket.onmessage = (event) => {
+      // If connection has been redialed, stop processing any messages
+      // from the old connection.
+      if (numConns === savedNumConns) {
+        event.data.text().then(onmessage);
+      }
+    };
+    socket.onerror = () => {
+      // Only reopen the connection if there is not a new one being
+      // opened already.
+      if (numConns === savedNumConns) {
+        log(`Websocket got error, redialing`);
+        redial();
+      }
+    };
+    socket.onclose = () => {
+      // Same as above.
+      if (numConns === savedNumConns) {
+        log(`Websocket was closed, redialing`);
+        redial();
+      }
+    };
+  };
+  redial = async () => withExponentialBackoff(tryRedial, 0.25, 2);
+  redial();
+  return {
+    send: (msg) => {
+      if (socket === null) {
+        log(`Websocket: failed to send message due to broken websocket`);
+        throw new Error(`websocket not currently live`);
+      }
+      log(`Websocket: sending message ${msg}`);
+      socket.send(msg);
+    },
+  };
+};
+
+const loadStorage = async () => {
+  const options = await new Promise((resolve) =>
+    chrome.storage.sync.get(["accessToken", "sessionId", "clientId"], resolve)
+  );
+  log(`Storage: loaded ${JSON.stringify(options)}`);
+  return options;
+};
+
 detectPrimaryVideo()
   .get()
   .then((video) =>
     instrumentVideo(video, (event) => {
       log(`Video instrumentation: got event ${JSON.stringify(event)}`);
+      if (globalWebsocket) {
+        globalWebsocket.send(JSON.stringify(event));
+      } else {
+        log(
+          `Video instrumentation: not passing on event as websocket is closed`
+        );
+      }
     })
   );
+
+let globalWebsocket = null;
+
+loadStorage().then(({ accessToken, sessionId, clientId }) => {
+  globalWebsocket = dialWebsocket(
+    `wss://three-eight.intuitiveexplanations.com/ws?token=${accessToken}&session=${sessionId}&client=${clientId}`,
+    (msg) => log(`Websocket: received message ${msg}`)
+  );
+});
