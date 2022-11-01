@@ -9,7 +9,8 @@
       "matches": [
         "https://*.hulu.com/*",
         "https://*.netflix.com/*",
-        "https://*.hbomax.com/*"
+        "https://*.hbomax.com/*",
+        "https://*.youtube.com/*"
       ],
       "js": ["content-script.js"]
     }
