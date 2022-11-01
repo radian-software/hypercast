@@ -2,7 +2,7 @@
 
 const fields = {
   accessToken: "accessTokenInput",
-  roomId: "roomIdInput",
+  sessionId: "sessionIdInput",
   clientId: "clientIdInput",
 };
 
