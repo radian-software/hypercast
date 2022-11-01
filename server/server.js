@@ -7,23 +7,10 @@ import { tinyws } from "tinyws";
 
 const app = express();
 
-app.use(async (req, res, next) => {
-  if (
-    process.env.AUTH_TOKEN &&
-    req.headers.authorization !== `Bearer ${process.env.AUTH_TOKEN}`
-  ) {
-    res
-      .status(401)
-      .send("received request without correct authorization token");
-    return;
-  }
-  next();
-});
-
 app.use(tinyws());
 
 app.get("/", async (_req, res) => {
-  res.send("Hello world!");
+  res.send("hello this server is not meant to be accessed in a browser");
 });
 
 const sessions = {};
@@ -34,10 +21,21 @@ app.use("/ws", async (req, res) => {
       res.status(400).send("received plain http request to websocket endpoint");
       return;
     }
-    // Validate that we received session name and client name as query
-    // parameters and that they are not excessively long (prevent
-    // unexpected things in code from being triggered by really long
-    // identifiers).
+    // Validate the access token. For some reason you can't pass http
+    // headers to websockets from javascript [1], so instead you have
+    // to do some weird thing where the client requests a one time
+    // code from the server that is then passed as a query parameter,
+    // or something. I don't feel like building that so for now we
+    // just put the access token in the query parameters as well. It
+    // should be not that big of a deal.
+    //
+    // [1]: https://stackoverflow.com/a/4361358
+    if (process.env.AUTH_TOKEN && req.query.token !== process.env.AUTH_TOKEN) {
+      res
+        .status(401)
+        .send("received request without correct authorization token");
+      return;
+    }
     if (!req.query.session) {
       res.status(422).send("received connection request without session name");
       return;
