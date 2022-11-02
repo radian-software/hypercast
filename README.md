@@ -7,7 +7,7 @@ Free, no-hassle watch parties on every streaming platform.
 **Not suitable for use.** This project is under current development
 and is not yet fully functional.
 
-## Usage
+## Usage (for most people)
 
 Install the Chrome extension from GitHub Releases or from the Chrome
 Web Store (link to come). Then, open a video on any streaming platform
@@ -16,6 +16,110 @@ party and copy a link for others to join. Hypercast does not stream
 the video; rather, it just synchronizes the playback of everyone in
 the party. As such, everyone needs to have access to the video you
 want to watch.
+
+## Usage (for programmers)
+
+You can easily run your own instance of Hypercast if you want. This is
+nice because you know for sure that it will never change or go away,
+and you retain full ownership over your data.
+
+Instructions for [Railway](https://railway.app/) (free):
+
+* Create a new app and service on Railway. If you want, add a custom
+  domain. Otherwise you can use the default
+  `https://somename.up.railway.app`.
+* Checkout the repository and run `railway link` in the `server`
+  subdirectory; link to the newly created service.
+* Run `railway up` to deploy.
+* If you want a private instance (only your friends can use it), run
+  `railway variables set AUTH_TOKEN=whateveryouwant`.
+* Your friends will need to put `https://somename.up.railway.app` (or
+  your custom domain) under `Hypercast instance` in their extension
+  settings. If you set `AUTH_TOKEN` then they'll also need to fill in
+  the value under `Access token`.
+
+Instructions for [Heroku](https://heroku.com/) ($7/month):
+
+* Create a new app. If you want, add a custom domain. Otherwise you
+  can use the default `https://somename.herokuapp.com`.
+* Install [Docker](https://www.docker.com/) (needed because Heroku
+  doesn't support building Docker images automatically).
+* Checkout the repository and run `heroku git:remote -a somename` in
+  the `server` subdirectory.
+* Run `heroku container:push web` and `heroku container:release web`
+  to deploy.
+* If you want a private instance (only your friends can use it), run
+  `heroku config:set AUTH_TOKEN=whateveryouwant`.
+* Your friends will need to put `https://somename.herokuapp.com` (or
+  your custom domain) under `Hypercast instance` in their extension
+  settings. If you set `AUTH_TOKEN` then they'll also need to fill in
+  the value under `Access token`.
+
+Instructions for other platforms:
+
+* Install [Docker](https://www.docker.com/).
+* Checkout the repository and run `docker build . -t hypercast`.
+* Push the image to some Docker registry.
+* Arrange for the image to be run on your server. Set `$PORT` to some
+  value for the container and map that to localhost port 80 on your
+  server.
+* Obtain a certificate for your preferred hostname and configure
+  renewals.
+* Set up a reverse proxy or load balancer to terminate TLS and forward
+  traffic to the container.
+
+If you want to skip over building your own image then you can use the
+release versions that I publish to Docker Hub instead (link to come).
+For Railway or Heroku you can use a Dockerfile that just contains a
+`FROM` line naming the Docker Hub image.
+
+You can also run the server on bare metal if you are a minimalist. It
+is just a simple Node.js app with no external dependencies.
+
+## Privacy statement
+
+The only data that is sent to the Hypercast server is play/pause
+events and seek timestamps from each client. I might look at this
+information if something goes wrong with the server and I need to fix
+it.
+
+Other information, such as what video you are watching, what sites you
+are visiting, and anything that could be used to identify you, is not
+even sent to the server, because it is not needed to provide the sole
+purpose of Hypercast, which is synchronizing video playback between
+different people's browsers.
+
+If you have a privacy concern, please email
+`privacy+hypercast@radian.codes` and I will do my best to get back to
+you as soon as possible.
+
+## Security statement
+
+Hypercast is implemented as a browser extension that has permission to
+execute JavaScript in the context of streaming websites. This means
+that if the extension were compromised by an attacker, your
+credentials to those sites could be stolen. This is a fairly serious
+risk so the extension is written to be as secure as possible. This is
+accomplished in a few ways:
+
+* The extension only requests permissions for the most popular
+  streaming websites by default. You can temporarily turn it on for
+  other websites, or you can download an alternative version of the
+  extension that has more websites enabled by default if you prefer.
+* The server is not trusted; the most that an attacker who controls
+  the server can do is cause your playback position and play/pause
+  state to change unexpectedly.
+* The code for the client is as simple as possible in order to limit
+  the possible attack surface.
+* I try to exercise good security hygiene for managing both personal
+  and business infrastructure, such as using unique high-entropy
+  passwords and TOTP-based two-factor authentication on all accounts,
+  limiting OAuth and access token scopes, and periodically revoking
+  unneeded permissions and third-party integrations.
+
+If you find a security issue, please email
+`security+hypercast@radian.codes` and I will do my best to get back to
+you as soon as possible.
 
 ## Motivation
 
