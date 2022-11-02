@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ThreeEight",
+  "name": "Hypercast",
   "version": "1.0.0",
   "description": "Simple video synchronization service",
   "options_page": "options.html",

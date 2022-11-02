@@ -1,7 +1,7 @@
 "use strict";
 
 const log = (msg) => {
-  console.log(`[ThreeEight Debug] ${msg}`);
+  console.log(`[Hypercast Debug] ${msg}`);
 };
 
 log("Initializing content script");
@@ -233,7 +233,7 @@ detectPrimaryVideo()
 
 loadStorage().then(({ accessToken, sessionId, clientId }) => {
   globalWebsocket = dialWebsocket(
-    `wss://three-eight.intuitiveexplanations.com/ws?token=${accessToken}&session=${sessionId}&client=${clientId}`,
+    `wss://hypercast.intuitiveexplanations.com/ws?token=${accessToken}&session=${sessionId}&client=${clientId}`,
     (msg) => {
       log(`Websocket: received message ${msg}`);
       if (globalVideoUpdater) {

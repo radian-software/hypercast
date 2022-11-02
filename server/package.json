@@ -1,8 +1,8 @@
 {
-  "name": "three-eight-server",
+  "name": "hypercast-server",
   "version": "1.0.0",
   "description": "Simple video synchronization service",
-  "author": "Radian LLC <contact+three-eight@radian.codes>",
+  "author": "Radian LLC <contact+hypercast@radian.codes>",
   "license": "MIT",
   "type": "module",
   "dependencies": {
