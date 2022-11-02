@@ -199,10 +199,21 @@ const dialWebsocket = (addr, onmessage, options) => {
   };
 };
 
+// todo: dedupe against options.js
+const optionDefaults = {
+  hypercastInstance: "https://hypercast.radian.codes",
+};
+
 const loadStorage = async () => {
   const options = await new Promise((resolve) =>
-    chrome.storage.sync.get(["accessToken", "sessionId", "clientId"], resolve)
+    chrome.storage.sync.get(
+      ["hypercastInstance", "accessToken", "sessionId", "clientId"],
+      resolve
+    )
   );
+  for (const [key, value] of Object.entries(optionDefaults)) {
+    options[key] = options[key] || value;
+  }
   log(`Storage: loaded ${JSON.stringify(options)}`);
   return options;
 };
@@ -231,14 +242,21 @@ detectPrimaryVideo()
     };
   });
 
-loadStorage().then(({ accessToken, sessionId, clientId }) => {
-  globalWebsocket = dialWebsocket(
-    `wss://hypercast.intuitiveexplanations.com/ws?token=${accessToken}&session=${sessionId}&client=${clientId}`,
-    (msg) => {
-      log(`Websocket: received message ${msg}`);
-      if (globalVideoUpdater) {
-        globalVideoUpdater(JSON.parse(msg));
+loadStorage().then(
+  ({ hypercastInstance, accessToken, sessionId, clientId }) => {
+    globalWebsocket = dialWebsocket(
+      `${hypercastInstance
+        .replace("http://", "ws://")
+        .replace(
+          "https://",
+          "wss://"
+        )}/ws?token=${accessToken}&session=${sessionId}&client=${clientId}`,
+      (msg) => {
+        log(`Websocket: received message ${msg}`);
+        if (globalVideoUpdater) {
+          globalVideoUpdater(JSON.parse(msg));
+        }
       }
-    }
-  );
-});
+    );
+  }
+);
