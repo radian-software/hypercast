@@ -46,14 +46,14 @@ echo >&2 "Using the following release notes:"
 sed 's/^/  /' >&2 <<<"${notes}"
 echo >&2
 
-if [[ "${1:-}" != --publish ]]; then
-    echo >&2 "Stopping here as --publish was not passed."
-    exit 0
-fi
-
 if ! git diff --quiet ./manifest-chrome.json ./manifest-firefox.json; then
     echo >&2 "Updated manifest versions should be commmitted before publishing"
     exit 1
+fi
+
+if [[ "${1:-}" != --publish ]]; then
+    echo >&2 "Stopping here as --publish was not passed."
+    exit 0
 fi
 
 echo >&2 "Verifying that required tools and configuration are setup"
