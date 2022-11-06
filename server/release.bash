@@ -60,6 +60,11 @@ else
     echo >&2 "Publishing this release since --dangerously-skip-confirmation was passed"
 fi
 
+echo >&2
+echo >&2 "Publishing to Docker Hub"
+docker push "radiansoftware/hypercast:v${ver}"
+docker push "radiansoftware/hypercast:latest"
+
 tag="server-v${ver}"
 
 echo >&2
@@ -74,8 +79,3 @@ gh release delete "${tag}" --yes || :
 echo >&2
 echo >&2 "Creating GitHub Release"
 gh release create "${tag}" -t "Hypercast server v${ver}" -F - <<<"${notes}"
-
-echo >&2
-echo >&2 "Publishing to Docker Hub"
-docker push "radiansoftware/hypercast:v${ver}"
-docker push "radiansoftware/hypercast:latest"
