@@ -18,5 +18,10 @@
       "js": ["content-script.js"]
     }
   ],
-  "permissions": ["storage"]
+  "permissions": ["storage"],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "hypercast@radian.codes"
+    }
+  }
 }
