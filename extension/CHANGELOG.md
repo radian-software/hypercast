@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog].
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 
+## 0.0.3
+
+Report correct version number in extension.
+
 ## 0.0.2
 
 Add Firefox extension in addition to the Chrome version.

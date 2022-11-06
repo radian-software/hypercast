@@ -8,6 +8,13 @@ ver="$(grep '^##' CHANGELOG.md | head -n1 | tr -d '# ')"
 echo >&2 "Generating release for Hypercast browser extension v${ver}"
 
 echo >&2
+echo >&2 "Ensuring manifest version number is up to date"
+for browser in chrome firefox; do
+    sed -E "s/^  \"version\": .+/  \"version\": \"${ver}\"/" "manifest-${browser}.json" >"manifest-${browser}.json.tmp"
+    mv "manifest-${browser}.json.tmp" "manifest-${browser}.json"
+done
+
+echo >&2
 echo >&2 "Generating unpacked extensions"
 make build
 
@@ -42,6 +49,11 @@ echo >&2
 if [[ "${1:-}" != --publish ]]; then
     echo >&2 "Stopping here as --publish was not passed."
     exit 0
+fi
+
+if ! git diff --quiet ./manifest-chrome.json ./manifest-firefox.json; then
+    echo >&2 "Updated manifest versions should be commmitted before publishing"
+    exit 1
 fi
 
 echo >&2 "Verifying that required tools and configuration are setup"
