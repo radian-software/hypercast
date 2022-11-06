@@ -9,13 +9,13 @@ and is not yet fully functional.
 
 ## Usage (for most people)
 
-Install the Chrome extension from GitHub Releases or from the Chrome
-Web Store (link to come). Then, open a video on any streaming platform
-and click the extension icon in the browser toolbar to create a watch
-party and copy a link for others to join. Hypercast does not stream
-the video; rather, it just synchronizes the playback of everyone in
-the party. As such, everyone needs to have access to the video you
-want to watch.
+Install the browser extension from GitHub Releases or from the Chrome
+Web Store (link to come) or Firefox Add-ons site (link to come). Then,
+open a video on any streaming platform and click the extension icon in
+the browser toolbar to create a watch party and copy a link for others
+to join. Hypercast does not stream the video; rather, it just
+synchronizes the playback of everyone in the party. As such, everyone
+needs to have access to the video you want to watch.
 
 ## Usage (for programmers)
 
@@ -69,9 +69,10 @@ Instructions for other platforms:
   traffic to the container.
 
 If you want to skip over building your own image then you can use the
-release versions that I publish to Docker Hub instead (link to come).
-For Railway or Heroku you can use a Dockerfile that just contains a
-`FROM` line naming the Docker Hub image.
+release versions that I publish to Docker Hub instead
+([link](https://hub.docker.com/r/radiansoftware/hypercast)). For
+Railway or Heroku you can use a Dockerfile that just contains a `FROM`
+line naming the Docker Hub image.
 
 You can also run the server on bare metal if you are a minimalist. It
 is just a simple Node.js app with no external dependencies.
