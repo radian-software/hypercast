@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog].
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 
+## 0.0.5
+
+Use random UUID for Firefox extension so that it can be published.
+
 ## 0.0.4
 
 Report correct version number in extension instead of 1.0.0.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Hypercast",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Simple video synchronization service",
   "options_ui": {
     "page": "options.html",
@@ -21,7 +21,7 @@
   "permissions": ["storage"],
   "browser_specific_settings": {
     "gecko": {
-      "id": "hypercast@radian.codes"
+      "id": "ac3874f4-2e8a-4841-9846-30d2c8086671"
     }
   }
 }
