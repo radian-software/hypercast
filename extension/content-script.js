@@ -205,12 +205,12 @@ const optionDefaults = {
 };
 
 const loadStorage = async () => {
-  const options = await new Promise((resolve) =>
-    chrome.storage.sync.get(
-      ["hypercastInstance", "accessToken", "sessionId", "clientId"],
-      resolve
-    )
-  );
+  const options = await chrome.storage.sync.get([
+    "hypercastInstance",
+    "accessToken",
+    "sessionId",
+    "clientId",
+  ]);
   for (const [key, value] of Object.entries(optionDefaults)) {
     options[key] = options[key] || value;
   }
