@@ -10,7 +10,7 @@ echo >&2 "Generating release for Hypercast browser extension v${ver}"
 echo >&2
 echo >&2 "Ensuring manifest version number is up to date"
 for browser in chrome firefox; do
-    sed -E "s/^  \"version\": .+/  \"version\": \"${ver}\"/" "manifest-${browser}.json" >"manifest-${browser}.json.tmp"
+    sed -E "s/^  \"version\": .+/  \"version\": \"${ver}\",/" "manifest-${browser}.json" >"manifest-${browser}.json.tmp"
     mv "manifest-${browser}.json.tmp" "manifest-${browser}.json"
 done
 

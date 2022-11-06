@@ -5,9 +5,13 @@ The format is based on [Keep a Changelog].
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 
-## 0.0.3
+## 0.0.4
 
-Report correct version number in extension.
+Report correct version number in extension instead of 1.0.0.
+
+## 0.0.3 [yanked]
+
+Use 0.0.4 instead. The manifest files were malformed in this release.
 
 ## 0.0.2
 
