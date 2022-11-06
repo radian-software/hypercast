@@ -1,6 +1,6 @@
 {
   "name": "hypercast-server",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Simple video synchronization service",
   "author": "Radian LLC <contact+hypercast@radian.codes>",
   "license": "MIT",
