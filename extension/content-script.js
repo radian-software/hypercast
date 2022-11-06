@@ -1,7 +1,7 @@
 "use strict";
 
-const log = (msg) => {
-  console.log(`[Hypercast Debug] ${msg}`);
+const log = (...msg) => {
+  console.log(`[Hypercast Debug]`, ...msg);
 };
 
 log("Initializing content script");
@@ -230,7 +230,7 @@ detectPrimaryVideo()
         globalWebsocket.send(JSON.stringify(event));
       } else {
         log(
-          `Video instrumentation: not passing on event as websocket is closed`
+          `Video instrumentation: not passing on event as websocket is not available`
         );
       }
     })
