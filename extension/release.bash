@@ -75,7 +75,7 @@ tag="extension-v${ver}"
 echo >&2
 echo >&2 "Pushing tag ${tag}"
 git tag "${tag}" HEAD --force
-git push origin "${tag}" --force-with-lease
+git push origin "${tag}" --force
 
 echo >&2
 echo >&2 "Deleting GitHub Release if it already exists"
