@@ -6,21 +6,32 @@ cd "$(dirname "$0")"
 ver="$(grep '^##' CHANGELOG.md | head -n1 | tr -d '# ')"
 
 echo >&2 "Generating release for Hypercast browser extension v${ver}"
+
 echo >&2
+echo >&2 "Generating unpacked extensions"
+make build
 
 chrome_zip="hypercast-extension-chrome-${ver}.zip"
-files=(
-    content-script.js
-    manifest.json
-    options.css
-    options.html
-    options.js
-)
 
+echo >&2
 echo >&2 "Packaging browser extension for Chrome"
 rm -f "${chrome_zip}"
-zip "${chrome_zip}" "${files[@]}"
+(
+    cd chrome
+    zip "../${chrome_zip}" -- *
+)
 echo >&2 "Created artifact ${chrome_zip}"
+
+firefox_zip="hypercast-extension-firefox-${ver}.zip"
+
+echo >&2
+echo >&2 "Packaging browser extension for Firefox"
+rm -f "${firefox_zip}"
+(
+    cd firefox
+    zip "../${firefox_zip}" -- *
+)
+echo >&2 "Created artifact ${firefox_zip}"
 
 notes="$(sed '/^##/,$!d' CHANGELOG.md | tail -n+2 | sed -n '/^##/q;p')"
 echo >&2

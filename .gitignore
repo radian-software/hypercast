@@ -1,2 +1,4 @@
 *.zip
+extension/chrome
+extension/firefox
 node_modules
