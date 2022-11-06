@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog].
 
 Add Firefox extension in addition to the Chrome version.
 
+Unexpected errors are logged in the console properly instead of being
+ignored.
+
 ## 0.0.1
 
 Initial version. Barely functional. Is capable of connecting to the

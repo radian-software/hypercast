@@ -4,6 +4,10 @@ const log = (...msg) => {
   console.log(`[Hypercast Debug]`, ...msg);
 };
 
+const logError = (...msg) => {
+  console.error(`[Hypercast ERROR]`, ...msg);
+};
+
 log("Initializing content script");
 
 const getCandidateVideos = () => {
@@ -240,10 +244,11 @@ detectPrimaryVideo()
       log(`Video instrumentation: applying event ${JSON.stringify(event)}`);
       updater(event);
     };
-  });
+  })
+  .catch(logError);
 
-loadStorage().then(
-  ({ hypercastInstance, accessToken, sessionId, clientId }) => {
+loadStorage()
+  .then(({ hypercastInstance, accessToken, sessionId, clientId }) => {
     globalWebsocket = dialWebsocket(
       `${hypercastInstance
         .replace("http://", "ws://")
@@ -258,5 +263,5 @@ loadStorage().then(
         }
       }
     );
-  }
-);
+  })
+  .catch(logError);
