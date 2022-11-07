@@ -8,6 +8,8 @@ const logError = (...msg) => {
   console.error(`[Hypercast ERROR]`, ...msg);
 };
 
+log("Initializing content script");
+
 // This is a reimplementation of most of the WebSocket interface which
 // should have basically the same behavior and API, except that
 // instead of opening the websocket directly, it uses extension
@@ -47,8 +49,6 @@ const HoudiniWebsocket = (addr) => {
   obj.send = (data) => port.postMessage({ event: "send", data: data });
   return obj;
 };
-
-log("Initializing content script");
 
 const getCandidateVideos = () => {
   return [...document.querySelectorAll("video")].filter((video) => {
