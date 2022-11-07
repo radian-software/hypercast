@@ -74,6 +74,7 @@ app.use("/ws", async (req, res) => {
         console.log(
           `${logPrefix} discarded due to excessive length of ${msg.length}`
         );
+        return;
       }
       // For debugging, log all messages.
       console.log(`${logPrefix} ${msg}`);
