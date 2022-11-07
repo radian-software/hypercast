@@ -12,6 +12,11 @@ no user-visible changes with existing usage but it makes it possible
 to set your preferred server to something running on localhost, so
 that you can test with your own modified server locally.
 
+The entire current playback state is now sent to other clients on
+every interaction. This means that playing or pausing will ensure that
+all other clients match your current time in the video, rather than
+just ensuring they have played or paused as appropriate, for example.
+
 ## 0.0.5
 
 Use random UUID for Firefox extension so that it can be published.
