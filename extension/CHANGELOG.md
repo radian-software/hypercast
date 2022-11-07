@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog].
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 
+## 0.0.6
+
+Websockets are opened from a service worker now. This should produce
+no user-visible changes with existing usage but it makes it possible
+to set your preferred server to something running on localhost, so
+that you can test with your own modified server locally.
+
 ## 0.0.5
 
 Use random UUID for Firefox extension so that it can be published.
