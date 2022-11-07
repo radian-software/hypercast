@@ -11,6 +11,8 @@ Actually discard excessive (4096+ character) messages, rather than
 just logging a message saying they are being discarded, but processing
 them anyway.
 
+Enable CORS for all origins.
+
 ## 0.0.1
 
 Initial version. Very minimal functionality. Transparently proxies

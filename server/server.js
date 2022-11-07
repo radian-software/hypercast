@@ -7,6 +7,14 @@ import { tinyws } from "tinyws";
 
 const app = express();
 
+app.use((_req, res, next) => {
+  // This server is intended to be accessed from a content script
+  // running in an arbitrary streaming site so it is necessary for
+  // CORS to be enabled for all origins.
+  res.header("Access-Control-Allow-Origin", "*");
+  next();
+});
+
 app.use(tinyws());
 
 app.get("/", async (_req, res) => {
