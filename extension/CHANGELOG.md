@@ -14,6 +14,10 @@ just ensuring they have played or paused as appropriate, for example.
 
 There is now an icon.
 
+You now have to click the extension icon before things start
+happening, which means all videos are not automatically synchronized
+globally forever.
+
 ## 0.0.5
 
 Use random UUID for Firefox extension so that it can be published.

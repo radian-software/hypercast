@@ -195,46 +195,62 @@ const loadStorage = async () => {
   return options;
 };
 
-let globalVideoUpdater = null;
-let globalWebsocket = null;
+const hypercastInit = () => {
+  let globalVideoUpdater = null;
+  let globalWebsocket = null;
 
-detectPrimaryVideo()
-  .get()
-  .then((video) =>
-    instrumentVideo(video, (event) => {
-      log(`Video instrumentation: generated event ${JSON.stringify(event)}`);
-      if (globalWebsocket) {
-        globalWebsocket.send(JSON.stringify(event));
-      } else {
-        log(
-          `Video instrumentation: not passing on event as websocket is not available`
-        );
-      }
-    })
-  )
-  .then((updater) => {
-    globalVideoUpdater = (event) => {
-      log(`Video instrumentation: applying event ${JSON.stringify(event)}`);
-      updater(event);
-    };
-  })
-  .catch(logError);
-
-loadStorage()
-  .then(({ hypercastInstance, accessToken, sessionId, clientId }) => {
-    globalWebsocket = dialWebsocket(
-      `${hypercastInstance
-        .replace("http://", "ws://")
-        .replace(
-          "https://",
-          "wss://"
-        )}/ws?token=${accessToken}&session=${sessionId}&client=${clientId}`,
-      (msg) => {
-        log(`Websocket: received message ${msg}`);
-        if (globalVideoUpdater) {
-          globalVideoUpdater(JSON.parse(msg));
+  detectPrimaryVideo()
+    .get()
+    .then((video) =>
+      instrumentVideo(video, (event) => {
+        log(`Video instrumentation: generated event ${JSON.stringify(event)}`);
+        if (globalWebsocket) {
+          globalWebsocket.send(JSON.stringify(event));
+        } else {
+          log(
+            `Video instrumentation: not passing on event as websocket is not available`
+          );
         }
-      }
-    );
-  })
-  .catch(logError);
+      })
+    )
+    .then((updater) => {
+      globalVideoUpdater = (event) => {
+        log(`Video instrumentation: applying event ${JSON.stringify(event)}`);
+        updater(event);
+      };
+    })
+    .catch(logError);
+
+  loadStorage()
+    .then(({ hypercastInstance, accessToken, sessionId, clientId }) => {
+      globalWebsocket = dialWebsocket(
+        `${hypercastInstance
+          .replace("http://", "ws://")
+          .replace(
+            "https://",
+            "wss://"
+          )}/ws?token=${accessToken}&session=${sessionId}&client=${clientId}`,
+        (msg) => {
+          log(`Websocket: received message ${msg}`);
+          if (globalVideoUpdater) {
+            globalVideoUpdater(JSON.parse(msg));
+          }
+        }
+      );
+    })
+    .catch(logError);
+};
+
+let hypercastInitDone = false;
+
+chrome.runtime.onMessage.addListener((req) => {
+  if (req.event !== "hypercastInit") {
+    return;
+  }
+  if (hypercastInitDone) {
+    return;
+  } else {
+    hypercastInitDone = true;
+  }
+  hypercastInit();
+});
