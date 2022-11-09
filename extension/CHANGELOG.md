@@ -12,6 +12,8 @@ every interaction. This means that playing or pausing will ensure that
 all other clients match your current time in the video, rather than
 just ensuring they have played or paused as appropriate, for example.
 
+There is now an icon.
+
 ## 0.0.5
 
 Use random UUID for Firefox extension so that it can be published.

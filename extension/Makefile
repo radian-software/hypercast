@@ -1,4 +1,4 @@
-SHARED_FILES := content-script.js options.css options.html options.js
+SHARED_FILES := background.js content-script.js icon128.png icon64.png icon32.png options.css options.html options.js
 ALL_FILES := $(SHARED_FILES) manifest.json
 ALL_PATHS := $(foreach dir,chrome firefox,$(foreach file,$(ALL_FILES),$(dir)/$(file)))
 EXTRA_PATHS := $(filter-out $(ALL_PATHS),$(wildcard chrome/* firefox/*))

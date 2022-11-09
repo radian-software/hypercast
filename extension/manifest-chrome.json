@@ -3,6 +3,11 @@
   "name": "Hypercast",
   "version": "0.0.5",
   "description": "Simple video synchronization service",
+  "icons": {
+    "128": "icon128.png",
+    "64": "icon64.png",
+    "32": "icon32.png"
+  },
   "options_page": "options.html",
   "content_scripts": [
     {
@@ -15,5 +20,15 @@
       "js": ["content-script.js"]
     }
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_icon": {
+      "128": "icon128.png",
+      "64": "icon64.png",
+      "32": "icon32.png"
+    }
+  },
   "permissions": ["storage"]
 }
