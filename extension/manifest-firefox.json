@@ -18,9 +18,6 @@
       "js": ["content-script.js"]
     }
   ],
-  "background": {
-    "scripts": ["background.js"]
-  },
   "permissions": ["storage"],
   "browser_specific_settings": {
     "gecko": {

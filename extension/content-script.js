@@ -10,47 +10,6 @@ const logError = (...msg) => {
 
 log("Initializing content script");
 
-// This is a reimplementation of most of the WebSocket interface which
-// should have basically the same behavior and API, except that
-// instead of opening the websocket directly, it uses extension
-// message passing to have a background service worker do it for us,
-// and proxies the messages back and forth. This works around
-// limitations about what requests can be made by a content script,
-// which do not apply for background scripts.
-const HoudiniWebsocket = (addr) => {
-  const obj = {
-    onopen: () => {},
-    onerror: () => {},
-    onclose: () => {},
-    onmessage: () => {},
-  };
-  const port = chrome.runtime.connect({ name: "websocket" });
-  port.postMessage({ event: "dial", url: addr });
-  port.onMessage.addListener((msg) => {
-    switch (msg.event) {
-      case "open":
-        obj.onopen();
-        break;
-      case "close":
-        obj.onclose();
-        break;
-      case "error":
-        obj.onerror();
-        break;
-      case "message":
-        obj.onmessage({
-          data: {
-            text: async () => msg.text,
-          },
-        });
-        break;
-    }
-  });
-  port.onDisconnect = () => obj.onclose();
-  obj.send = (data) => port.postMessage({ event: "send", data: data });
-  return obj;
-};
-
 const getCandidateVideos = () => {
   return [...document.querySelectorAll("video")].filter((video) => {
     const rect = video.getBoundingClientRect();
@@ -157,7 +116,7 @@ const withExponentialBackoff = async (
   }
 };
 
-const dialWebsocket = (addr, onmessage) => {
+const dialWebsocket = (addr, onmessage, options) => {
   let socket = null;
   let numConns = 0;
   let redial;
@@ -168,7 +127,7 @@ const dialWebsocket = (addr, onmessage) => {
       socket = null;
     }
     log(`Websocket: trying to connect to ${addr}`);
-    socket = HoudiniWebsocket(addr);
+    socket = new WebSocket(addr, options);
     await new Promise((resolve, reject) => {
       socket.onopen = resolve;
       socket.onerror = (err) => {
