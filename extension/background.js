@@ -6,6 +6,18 @@
 // websocket message passing on the background script side, where we
 // have permissions to do so.
 
+const logError = console.error;
+
+const withLoggedErrors =
+  (func) =>
+  (...args) => {
+    try {
+      return func(...args);
+    } catch (err) {
+      logError(err);
+    }
+  };
+
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== "websocket") {
     return;
@@ -15,17 +27,35 @@ chrome.runtime.onConnect.addListener((port) => {
     switch (msg.event) {
       case "dial":
         conn = new WebSocket(msg.url);
-        conn.onopen = () => port.postMessage({ event: "open" });
-        conn.onclose = () => port.postMessage({ event: "close" });
-        conn.onerror = () => port.postMessage({ event: "error" });
+        conn.onopen = withLoggedErrors(() =>
+          port.postMessage({ event: "open" })
+        );
+        conn.onclose = withLoggedErrors(() =>
+          port.postMessage({ event: "close" })
+        );
+        conn.onerror = withLoggedErrors(() =>
+          port.postMessage({ event: "error" })
+        );
         conn.onmessage = (event) =>
           event.data
             .text()
-            .then((text) => port.postMessage({ event: "message", text: text }));
+            .then(
+              withLoggedErrors((text) =>
+                port.postMessage({ event: "message", text: text })
+              )
+            );
         break;
       case "send":
         if (conn) {
-          conn.send(msg.data);
+          try {
+            conn.send(msg.data);
+          } catch (err) {
+            try {
+              conn.close();
+            } catch (err) {
+              logError(err);
+            }
+          }
         }
         break;
     }
