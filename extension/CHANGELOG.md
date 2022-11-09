@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog].
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 
+## 0.0.7
+
+Tbd
+
 ## 0.0.6
 
 The entire current playback state is now sent to other clients on

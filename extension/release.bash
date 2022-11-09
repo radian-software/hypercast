@@ -83,4 +83,4 @@ gh release delete "${tag}" --yes || :
 
 echo >&2
 echo >&2 "Creating GitHub Release"
-gh release create "${tag}" -t "Hypercast browser extension v${ver}" -F - "${chrome_zip}" <<<"${notes}"
+gh release create "${tag}" -t "Hypercast browser extension v${ver}" -F - "${chrome_zip}" "${firefox_zip}" <<<"${notes}"
