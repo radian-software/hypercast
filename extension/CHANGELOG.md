@@ -10,7 +10,10 @@ The format is based on [Keep a Changelog].
 Websockets are opened from a service worker now. This should produce
 no user-visible changes with existing usage but it makes it possible
 to set your preferred server to something running on localhost, so
-that you can test with your own modified server locally.
+that you can test with your own modified server locally. It's possible
+that some regressions around stability of long-running sessions may
+have been introduced, however, so caution when upgrading to this
+release is encouraged.
 
 The entire current playback state is now sent to other clients on
 every interaction. This means that playing or pausing will ensure that

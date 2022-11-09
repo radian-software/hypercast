@@ -46,6 +46,7 @@ const HoudiniWebsocket = (addr) => {
         break;
     }
   });
+  port.onDisconnect = () => obj.onclose();
   obj.send = (data) => port.postMessage({ event: "send", data: data });
   return obj;
 };
