@@ -177,6 +177,8 @@ const dialWebsocket = (addr, onmessage, options) => {
 // todo: dedupe against options.js
 const optionDefaults = {
   hypercastInstance: "https://hypercast.radian.codes",
+  sessionId: "shared",
+  clientId: "anonymous",
 };
 
 const loadStorage = async () => {
