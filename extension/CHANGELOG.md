@@ -7,7 +7,11 @@ The format is based on [Keep a Changelog].
 
 ## 0.0.7
 
-Tbd
+End-to-end encryption is now used, so the server has no knowledge of
+what data is passing between clients, except for at what timestamps
+data is sent, and no ability to tamper with the contents. The usage
+model is the same, but all clients in a session must upgrade to 0.0.7
+to communicate.
 
 ## 0.0.6
 

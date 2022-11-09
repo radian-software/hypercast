@@ -223,20 +223,60 @@ const hypercastInit = () => {
 
   loadStorage()
     .then(({ hypercastInstance, accessToken, sessionId, clientId }) => {
-      globalWebsocket = dialWebsocket(
+      const md = forge.md.sha256.create();
+      md.update(sessionId);
+      const hashedSessionId = md.digest().toHex();
+      // Quick hack to just use the same salts globally. Needs to be
+      // replaced asap with salt that is dynamically generated and
+      // then shared between clients, to ensure defense against
+      // dictionary attacks.
+      const keySalt = forge.util.decode64(
+        "fozeFuJBd8MVILhXBWCfcbSt3XRT7MFUhYcnLbcbR/KgNzB54FWhi+liwdHSHH4zduMZSuY74cE6tACbyRLtefDN62D4Ko2P7jtJwvyBN/m9uhkbRpTuNHByicn3PSwr5O+Wq7Cm/HvNYdC/1Ypsk41kbiZF6Ji0DEVbJyigoxk="
+      );
+      const ivSalt = forge.util.decode64(
+        "NfkV0ly0UZkq5RvjgnKtfjfORQHCZ8UFjam6qYheoiYFkAGRmGBGTukaYfshn9NuCQgY00axFA5gv70zz5D5bUxNEFZLQXX0YSLPjYEyd/TkrE/TOC6sF0DG422De5RFBkOAoVlt5521e6pOgABZShafA8Z9XdQkT0oAdPs0Zos=%"
+      );
+      const key = forge.pkcs5.pbkdf2(sessionId, keySalt, 5000, 16);
+      const iv = forge.pkcs5.pbkdf2(sessionId, ivSalt, 5000, 12);
+      const underlying = dialWebsocket(
         `${hypercastInstance
           .replace("http://", "ws://")
           .replace(
             "https://",
             "wss://"
-          )}/ws?token=${accessToken}&session=${sessionId}&client=${clientId}`,
-        (msg) => {
-          log(`Websocket: received message ${msg}`);
+          )}/ws?token=${accessToken}&session=${hashedSessionId}&client=${clientId}`,
+        (rawmsg) => {
+          log(`Websocket: received message ${rawmsg}`);
+          const { ciphertext, tag } = JSON.parse(rawmsg);
+          const decipher = forge.cipher.createDecipher("AES-GCM", key);
+          decipher.start({
+            iv: iv,
+            tag: forge.util.decode64(tag),
+          });
+          decipher.update(
+            forge.util.createBuffer(forge.util.decode64(ciphertext))
+          );
+          if (!decipher.finish()) {
+            logError(`Failed to decrypt AES-GCM`);
+            return;
+          }
+          const msg = decipher.output.getBytes();
           if (globalVideoUpdater) {
             globalVideoUpdater(JSON.parse(msg));
           }
         }
       );
+      globalWebsocket = {
+        send: (msg) => {
+          const cipher = forge.cipher.createCipher("AES-GCM", key);
+          cipher.start({ iv: iv });
+          cipher.update(forge.util.createBuffer(msg));
+          cipher.finish();
+          const ciphertext = forge.util.encode64(cipher.output.getBytes());
+          const tag = forge.util.encode64(cipher.mode.tag.getBytes());
+          underlying.send(JSON.stringify({ ciphertext, tag }));
+        },
+      };
     })
     .catch(logError);
 };
