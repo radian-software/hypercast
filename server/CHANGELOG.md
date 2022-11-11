@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog].
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 
+## 0.0.3
+
+No longer require client IDs to be sent by clients, as they were not
+used for anything important.
+
+Do not log messages, as the debugging utility is limited now that
+end-to-end encryption is the default mode of operation.
+
 ## 0.0.2
 
 Actually discard excessive (4096+ character) messages, rather than

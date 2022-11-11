@@ -45,19 +45,12 @@ app.use("/ws", async (req, res) => {
       return;
     }
     if (!req.query.session) {
-      res.status(422).send("received connection request without session name");
+      res.status(422).send("received connection request without session ID");
       return;
     }
     if (req.query.session.length > 1024) {
-      res.status(422).send("session name is too long");
+      res.status(422).send("session ID is too long");
       return;
-    }
-    if (!req.query.client) {
-      res.status(422).send("received connection request without client name");
-      return;
-    }
-    if (req.query.client.length > 1024) {
-      res.status(422).send("client name is too long");
     }
     // Look up existing session or create a new one.
     const session = sessions[req.query.session] || {
@@ -76,16 +69,10 @@ app.use("/ws", async (req, res) => {
       }
     });
     ws.on("message", (msg) => {
-      const logPrefix = `msg [client ${req.query.client} => session ${req.query.session}]`;
       // Put an upper limit on messages, for sanity.
       if (msg.length > 4096) {
-        console.log(
-          `${logPrefix} discarded due to excessive length of ${msg.length}`
-        );
         return;
       }
-      // For debugging, log all messages.
-      console.log(`${logPrefix} ${msg}`);
       // Broadcast received message to all other connected clients.
       for (const conn of session.conns) {
         // Don't echo message back to the client that sent it.
