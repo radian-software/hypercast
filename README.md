@@ -10,12 +10,13 @@ and is not yet fully functional.
 ## Usage (for most people)
 
 Install the browser extension from GitHub Releases or from the Chrome
-Web Store (link to come) or Firefox Add-ons site (link to come). Then,
-open a video on any streaming platform and click the extension icon in
-the browser toolbar to create a watch party and copy a link for others
-to join. Hypercast does not stream the video; rather, it just
-synchronizes the playback of everyone in the party. As such, everyone
-needs to have access to the video you want to watch.
+Web Store (link to come) or [Firefox Add-ons
+site](https://addons.mozilla.org/en-US/firefox/addon/hypercast/).
+Then, open a video on any streaming platform and click the extension
+icon in the browser toolbar to create a watch party and copy a link
+for others to join. Hypercast does not stream the video; rather, it
+just synchronizes the playback of everyone in the party. As such,
+everyone needs to have access to the video you want to watch.
 
 ## Usage (for programmers)
 
