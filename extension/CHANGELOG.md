@@ -12,6 +12,11 @@ multiple positions when seeking, especially with a large number of
 clients connected. This has been made much less likely by implementing
 a slightly modified synchronization algorithm.
 
+Detection of the active video element is faster now in most cases. If
+there is only one choice, then it is selected immediately. Only if
+there is more than one candidate and Hypercast cannot disambiguate do
+you have to hit play on the main content to show it which is which.
+
 ## 0.0.7
 
 End-to-end encryption is now used, so the server has no knowledge of
