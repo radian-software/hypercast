@@ -10,7 +10,8 @@ and is not yet fully functional.
 ## Usage (for most people)
 
 Install the browser extension from GitHub Releases or from the Chrome
-Web Store (link to come) or [Firefox Add-ons
+Web Store (not yet available, since the Google review process is
+extremely slow) or [Firefox Add-ons
 site](https://addons.mozilla.org/en-US/firefox/addon/hypercast/).
 Then, open a video on any streaming platform and click the extension
 icon in the browser toolbar to create a watch party and copy a link
@@ -81,15 +82,20 @@ is just a simple Node.js app with no external dependencies.
 ## Privacy statement
 
 The only data that is sent to the Hypercast server is play/pause
-events and seek timestamps from each client. I might look at this
-information if something goes wrong with the server and I need to fix
-it.
+events and seek timestamps from each client. Furthermore, all data is
+end-to-end encrypted and authenticated using
+[AES-GCM](https://www.aes-gcm.com/) as implemented by
+[Forge](https://github.com/digitalbazaar/forge), so it is impossible
+for the server operator to reconstruct any information about any
+client that connects to it, other than how often it communicates with
+other clients.
 
-Other information, such as what video you are watching, what sites you
-are visiting, and anything that could be used to identify you, is not
-even sent to the server, because it is not needed to provide the sole
-purpose of Hypercast, which is synchronizing video playback between
-different people's browsers.
+There is no option to have a user account with Hypercast, and no
+database which could store personal information even if such
+information were collected.
+
+These claims can be easily validated by inspecting the source code,
+which aims to be simple and transparent.
 
 If you have a privacy concern, please email
 `privacy+hypercast@radian.codes` and I will do my best to get back to
@@ -108,9 +114,11 @@ accomplished in a few ways:
   streaming websites by default. You can temporarily turn it on for
   other websites, or you can download an alternative version of the
   extension that has more websites enabled by default if you prefer.
-* The server is not trusted; the most that an attacker who controls
-  the server can do is cause your playback position and play/pause
-  state to change unexpectedly.
+* The server is not trusted; even if an attacker fully controls the
+  server, it is impossible for them to read any data sent by the
+  extension, or send any data to the extension from their end. The
+  most that they can do is execute replay attacks to cause actions
+  from other users to be repeated unexpectedly.
 * The code for the client is as simple as possible in order to limit
   the possible attack surface.
 * I try to exercise good security hygiene for managing both personal
