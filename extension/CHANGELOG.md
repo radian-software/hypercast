@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog].
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 
+## 0.0.9
+
+New clients will sync automatically to the current playback state when
+joining a session. This improvement required a breaking change to the
+protocol, so all clients must upgrade to 0.0.9 to communicate.
+
+Some bugs introduced in 0.0.8 where playback would fail to sync to
+other clients have been fixed.
+
+Client ID configuration has been removed from settings since setting
+your client ID never had any effect. Setting a display name will be
+added in a future release, but it would not have any effect now
+because there is nowhere in the interface for a display name to be
+displayed.
+
 ## 0.0.8
 
 In some cases video playback would flicker back and forth between

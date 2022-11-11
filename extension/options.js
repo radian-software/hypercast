@@ -4,14 +4,12 @@ const fields = {
   hypercastInstance: "hypercastInstanceInput",
   accessToken: "accessTokenInput",
   sessionId: "sessionIdInput",
-  clientId: "clientIdInput",
 };
 
 // todo: dedupe against content-script.js
 const defaults = {
   hypercastInstance: "https://hypercast.radian.codes",
   sessionId: "shared",
-  clientId: "anonymous",
 };
 
 const saveButton = document.getElementById("saveButton");
