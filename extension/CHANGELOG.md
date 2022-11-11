@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog].
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 
+## 0.0.8
+
+In some cases video playback would flicker back and forth between
+multiple positions when seeking, especially with a large number of
+clients connected. This has been made much less likely by implementing
+a slightly modified synchronization algorithm.
+
 ## 0.0.7
 
 End-to-end encryption is now used, so the server has no knowledge of

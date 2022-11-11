@@ -71,14 +71,36 @@ const detectPrimaryVideo = () => {
 
 const instrumentVideo = (video, callback) => {
   log(`Video instrumentation: installing event listeners`);
+  let lastSetPlaying = null;
+  let lastSetVideoTimeSeconds = null;
+  let lastSetRealTimeSeconds = null;
   for (const event of ["play", "pause", "seeked"]) {
-    video.addEventListener(event, () =>
+    video.addEventListener(event, () => {
+      if (
+        // If we have previously applied an event...
+        lastSetRealTimeSeconds &&
+        // ... in the last 500 milliseconds ...
+        lastSetRealTimeSeconds - new Date() / 1000 < 0.5 &&
+        // ... and that event matches the current pause state ...
+        lastSetPlaying == !video.paused &&
+        // ... and current playback time ...
+        Math.abs(lastSetVideoTimeSeconds - video.currentTime < 0.5)
+        // ... then:
+      ) {
+        // This event is probably just the result of our applying an
+        // event that we received from another client, so there is no
+        // need to send it back out as an additional update. If
+        // multiple messages get to be in flight at the same time,
+        // this kind of echoing can cause flickering back and forth as
+        // the clients fail to reach consensus.
+        return;
+      }
       callback({
         playing: !video.paused,
         videoTimeSeconds: video.currentTime,
         realTimeSeconds: new Date() / 1000,
-      })
-    );
+      });
+    });
   }
   return ({ playing, videoTimeSeconds, realTimeSeconds }) => {
     if (playing && video.paused) {
@@ -94,6 +116,11 @@ const instrumentVideo = (video, callback) => {
     if (Math.abs(video.currentTime - expectedVideoTime) > 0.5) {
       video.currentTime = expectedVideoTime;
     }
+    // Read the attributes back out from the video in case they were
+    // automatically rounded or something.
+    lastSetPlaying = !video.paused;
+    lastSetVideoTimeSeconds = video.currentTime;
+    lastSetRealTimeSeconds = new Date() / 1000;
   };
 };
 
