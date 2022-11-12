@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog].
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 
+## 0.0.10
+
+Other clients will be paused when your video starts buffering, and
+will be unpaused when it finishes.
+
 ## 0.0.9
 
 New clients will sync automatically to the current playback state when

@@ -89,7 +89,9 @@ const instrumentVideo = (video, callback) => {
   let lastSetPlaying = null;
   let lastSetVideoTimeSeconds = null;
   let lastSetRealTimeSeconds = null;
-  for (const event of ["play", "pause", "seeked"]) {
+  const isPlaying = () =>
+    !video.paused && video.readyState >= video.HAVE_FUTURE_DATA;
+  for (const event of ["play", "canplay", "pause", "waiting", "seeked"]) {
     video.addEventListener(event, () => {
       log(`Video instrumentation: received ${event} event from <video>`);
       if (
@@ -98,7 +100,7 @@ const instrumentVideo = (video, callback) => {
         // ... in the last 500 milliseconds ...
         lastSetRealTimeSeconds - new Date() / 1000 < 0.5 &&
         // ... and that event matches the current pause state ...
-        lastSetPlaying == !video.paused &&
+        lastSetPlaying === isPlaying() &&
         // ... and current playback time ...
         Math.abs(lastSetVideoTimeSeconds - video.currentTime) < 0.5
         // ... then:
@@ -115,7 +117,7 @@ const instrumentVideo = (video, callback) => {
         return;
       }
       const stateEvent = {
-        playing: !video.paused,
+        playing: isPlaying(),
         videoTimeSeconds: video.currentTime,
         realTimeSeconds: new Date() / 1000,
       };
@@ -135,11 +137,11 @@ const instrumentVideo = (video, callback) => {
         )} from another client`
       );
       const { playing, videoTimeSeconds, realTimeSeconds } = stateEvent;
-      if (playing && video.paused) {
+      if (playing && !isPlaying()) {
         log(`Video instrumentation: unpausing video`);
         video.play();
       }
-      if (!playing && !video.paused) {
+      if (!playing && isPlaying()) {
         log(`Video instrumentation: pausing video`);
         video.pause();
       }
@@ -155,7 +157,7 @@ const instrumentVideo = (video, callback) => {
       }
       // Read the attributes back out from the video in case they were
       // automatically rounded or something.
-      lastSetPlaying = !video.paused;
+      lastSetPlaying = isPlaying();
       lastSetVideoTimeSeconds = video.currentTime;
       lastSetRealTimeSeconds = new Date() / 1000;
     },
