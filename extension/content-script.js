@@ -328,18 +328,13 @@ const getEventBus = () => {
   };
 };
 
-// todo: dedupe against options.js
-const optionDefaults = {
-  hypercastInstance: "https://hypercast.radian.codes",
-  sessionId: "shared",
-};
-
 const loadStorage = async () => {
   const options = await chrome.storage.sync.get([
     "hypercastInstance",
     "accessToken",
     "sessionId",
   ]);
+  // See option-defaults.js for definition of optionDefaults
   for (const [key, value] of Object.entries(optionDefaults)) {
     options[key] = options[key] || value;
   }

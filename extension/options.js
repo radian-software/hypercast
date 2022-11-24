@@ -6,12 +6,6 @@ const fields = {
   sessionId: "sessionIdInput",
 };
 
-// todo: dedupe against content-script.js
-const defaults = {
-  hypercastInstance: "https://hypercast.radian.codes",
-  sessionId: "shared",
-};
-
 const saveButton = document.getElementById("saveButton");
 
 async function main() {
@@ -20,8 +14,9 @@ async function main() {
     let value = await new Promise((resolve) =>
       chrome.storage.sync.get([key], (res) => resolve(res[key]))
     );
-    if (defaults[key] && !value) {
-      value = defaults[key];
+    // See option-defaults.js for definition of optionDefaults
+    if (optionDefaults[key] && !value) {
+      value = optionDefaults[key];
     }
     if (value) {
       elt.value = value;

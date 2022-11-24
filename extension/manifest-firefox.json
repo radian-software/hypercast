@@ -20,7 +20,7 @@
         "https://*.hbomax.com/*",
         "https://*.youtube.com/*"
       ],
-      "js": ["forge.min.js", "content-script.js"]
+      "js": ["forge.min.js", "option-defaults.js", "content-script.js"]
     }
   ],
   "background": {
