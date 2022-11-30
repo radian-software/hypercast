@@ -8,7 +8,7 @@ const logError = (...msg) => {
   console.error(`[Hypercast ERROR]`, ...msg);
 };
 
-log("Initializing content script");
+log("Content script: initializing");
 
 const getCandidateVideos = () => {
   return [...document.querySelectorAll("video")].filter((video) => {
@@ -84,7 +84,171 @@ const detectPrimaryVideo = () => {
   };
 };
 
-const instrumentVideo = (video, callback) => {
+let sketchyEvalCounter = 0;
+
+let truncateCode = (code, maxLength) => {
+  let suffix = "... (truncated)";
+  let truncatedCode = code;
+  if (truncatedCode.length > maxLength - suffix.length) {
+    truncatedCode = truncatedCode.slice(0, maxLength - suffix.length) + suffix;
+  }
+  return truncatedCode;
+};
+
+// https://stackoverflow.com/a/9517879
+// Only works on Manifest V2, obviously
+const sketchyEval = (code, opts) => {
+  if (!(opts && opts.silent)) {
+    log(`Video actor evaluator: executing ${truncateCode(code, 256)}`);
+  }
+  const script = document.createElement("script");
+  script.textContent = code;
+  (document.head || document.documentElement).appendChild(script);
+  script.remove();
+};
+
+// Like sketchyEval but returns the result of evaluating the
+// expression
+//
+// Is terrible
+//
+// Not currently used, but will be necessary if we decide any of the
+// video actor custom methods needs to return a value
+//
+// https://stackoverflow.com/a/19312198
+const sketchyEvalWithReturn = async (code) => {
+  log(`Video actor evaluator: executing ${truncateCode(code, 256)}`);
+  const eventName = `hypercastSketchyEval_${sketchyEvalCounter}`;
+  sketchyEvalCounter += 1;
+  // Have to define callback inside promise body to have access to
+  // resolve and reject. But have to remove it outside the promise
+  // body to be able to use try-finally. Add a layer of indirection to
+  // resolve the circular dependency. Probably there is a more elegant
+  // way but this works.
+  let callback = null;
+  const wrappedCallback = (event) => callback(event);
+  document.addEventListener(eventName, wrappedCallback);
+  try {
+    return await new Promise((resolve, reject) => {
+      callback = (event) => {
+        if (event.detail.success) {
+          resolve(event.detail.value);
+        } else {
+          reject(event.detail.value);
+        }
+      };
+      setTimeout(() => reject("Unexpected timeout on sketchyEval"), 1000);
+      sketchyEval(
+        `try { document.dispatchEvent(new CustomEvent(${JSON.stringify(
+          eventName
+        )}, {detail: {value: eval(${JSON.stringify(
+          code
+        )}), success: true}})) } catch (err) { document.dispatchEvent(new CustomEvent(${JSON.stringify(
+          eventName
+        )}, {detail: {value: err, success: false}})) }`,
+        { silent: true }
+      );
+    });
+  } finally {
+    document.removeEventListener(eventName, wrappedCallback);
+  }
+};
+
+const getVideoActor = (siteOverridesRaw) => {
+  let selectedOverride = null;
+  let selectedHostname = null;
+  const overrideList = JSON.parse(siteOverridesRaw).overrides;
+  log(
+    `Video actor: checking hostname ${location.hostname} against ${overrideList.length} configured site override(s)`
+  );
+  for (const override of overrideList) {
+    for (const site of override.sites) {
+      // Exact match or subdomain, e.g. "player.hulu.com" ends with
+      // ".hulu.com", so an entry for "hulu.com" would be active for
+      // "hulu.com" or "player.hulu.com" but not "cthulu.com"
+      if (
+        site === location.hostname ||
+        location.hostname.endsWith("." + site)
+      ) {
+        selectedOverride = override;
+        selectedHostname = site;
+        break;
+      }
+    }
+    if (selectedOverride) {
+      break;
+    }
+  }
+  const actor = {
+    pause: (video) => video.pause(),
+    play: (video) => video.play(),
+    setCurrentTime: (video, newCurrentTime) => {
+      video.currentTime = newCurrentTime;
+    },
+  };
+  if (selectedOverride) {
+    // Check browser - https://stackoverflow.com/a/45985333
+    if (typeof browser === "undefined") {
+      // Chrome does not support site overrides because Google removed
+      // the features that would make it possible, because those
+      // features are also what powers all modern adblockers, and
+      // Google sells ads. So, abort if using Chrome.
+      alert(
+        `Sorry, watch parties for ${selectedHostname} do not work on Chrome, only on Firefox. This is because in early 2022, Google blocked browser extensions from using the features that are needed to support this website.\n\nWe tried to find a workaround, but there isn't one. Google removed these features in order to prevent people from using adblockers that interfere with their business model of selling access to personal data (using "security" as a smokescreen to cover their real motivations), and they were careful not to leave any holes.\n\nMay we suggest Firefox instead?`
+      );
+      throw new Error(`Cannot provision custom video actor on Chrome`);
+    }
+    log(`Video actor (${selectedHostname}): activating`);
+  }
+  if (selectedOverride && selectedOverride.functions) {
+    const funcs = selectedOverride.functions;
+    // User defined site overrides are defined as JavaScript code in
+    // strings, must eval to run them. Since eval doesn't have access
+    // to page context, must use sketchy eval technique instead to run
+    // via DOM. When using sketchy eval, function closures are lost,
+    // so must do weird things to preserve local variables.
+    const createSketchyFunc = (name, code) => {
+      const fullName = `window.hypercastVideoActor_${name}`;
+      sketchyEval(`${fullName} = eval(${JSON.stringify(code)})`);
+      return fullName;
+    };
+    const initData = `window.hypercastVideoActorInitData`;
+    if (funcs.setup) {
+      log(`Video actor (${selectedHostname}): executing setup function`);
+      const setupFunc = createSketchyFunc("setup", funcs.setup);
+      sketchyEval(`${initData} = ${setupFunc}()`);
+    }
+    if (funcs.pause) {
+      const pauseFunc = createSketchyFunc("pause", funcs.pause);
+      actor.pause = (_video) => {
+        log(`Video actor (${selectedHostname}): executing pause function`);
+        sketchyEval(`${pauseFunc}(${initData})`);
+      };
+    }
+    if (funcs.play) {
+      const playFunc = createSketchyFunc("play", funcs.play);
+      actor.play = (_video) => {
+        log(`Video actor (${selectedHostname}): executing play function`);
+        sketchyEval(`${playFunc}(${initData})`);
+      };
+    }
+    if (funcs.setCurrentTime) {
+      const setCurrentTimeFunc = createSketchyFunc(
+        "setCurrentTime",
+        funcs.setCurrentTime
+      );
+      actor.setCurrentTime = (_video, newCurrentTime) => {
+        log(
+          `Video actor (${selectedHostname}): executing setCurrentTime function`
+        );
+        sketchyEval(`${setCurrentTimeFunc}(${initData}, ${newCurrentTime})`);
+      };
+    }
+  }
+  return actor;
+};
+
+const instrumentVideo = (video, actor, callback) => {
   log(`Video instrumentation: installing event listeners`);
   let lastSetPlaying = null;
   let lastSetVideoTimeSeconds = null;
@@ -92,90 +256,102 @@ const instrumentVideo = (video, callback) => {
   const isPlaying = () =>
     !video.paused && video.readyState >= video.HAVE_FUTURE_DATA;
   for (const event of ["play", "canplay", "pause", "waiting", "seeked"]) {
-    video.addEventListener(event, () => {
-      log(`Video instrumentation: received ${event} event from <video>`);
-      if (
-        // If we have previously applied an event...
-        lastSetRealTimeSeconds &&
-        // ... in the last 500 milliseconds ...
-        lastSetRealTimeSeconds - new Date() / 1000 < 0.5 &&
-        // ... and that event matches the current pause state ...
-        lastSetPlaying === isPlaying() &&
-        // ... and current playback time ...
-        Math.abs(lastSetVideoTimeSeconds - video.currentTime) < 0.5
-        // ... then:
-      ) {
-        // This event is probably just the result of our applying an
-        // event that we received from another client, so there is no
-        // need to send it back out as an additional update. If
-        // multiple messages get to be in flight at the same time,
-        // this kind of echoing can cause flickering back and forth as
-        // the clients fail to reach consensus.
+    video.addEventListener(event, async () => {
+      try {
+        log(`Video instrumentation: received ${event} event from <video>`);
+        if (
+          // If we have previously applied an event...
+          lastSetRealTimeSeconds &&
+          // ... in the last 500 milliseconds ...
+          lastSetRealTimeSeconds - new Date() / 1000 < 0.5 &&
+          // ... and that event matches the current pause state ...
+          lastSetPlaying === isPlaying() &&
+          // ... and current playback time ...
+          Math.abs(lastSetVideoTimeSeconds - video.currentTime) < 0.5
+          // ... then:
+        ) {
+          // This event is probably just the result of our applying an
+          // event that we received from another client, so there is no
+          // need to send it back out as an additional update. If
+          // multiple messages get to be in flight at the same time,
+          // this kind of echoing can cause flickering back and forth as
+          // the clients fail to reach consensus.
+          log(
+            `Video instrumentation: ignoring event as it was due to applied update from another client`
+          );
+          return;
+        }
+        const stateEvent = {
+          playing: isPlaying(),
+          videoTimeSeconds: video.currentTime,
+          realTimeSeconds: new Date() / 1000,
+        };
         log(
-          `Video instrumentation: ignoring event as it was due to applied update from another client`
+          `Video instrumentation: broadcasting event ${JSON.stringify(
+            stateEvent
+          )} to other clients`
         );
-        return;
+        callback(stateEvent);
+      } catch (err) {
+        logError(err);
       }
-      const stateEvent = {
-        playing: isPlaying(),
-        videoTimeSeconds: video.currentTime,
-        realTimeSeconds: new Date() / 1000,
-      };
-      log(
-        `Video instrumentation: broadcasting event ${JSON.stringify(
-          stateEvent
-        )} to other clients`
-      );
-      callback(stateEvent);
     });
   }
   return {
-    applyStateEvent: (stateEvent) => {
-      log(
-        `Video instrumentation: received event ${JSON.stringify(
-          stateEvent
-        )} from another client`
-      );
-      const { playing, videoTimeSeconds, realTimeSeconds } = stateEvent;
-      if (playing && !isPlaying()) {
-        log(`Video instrumentation: unpausing video`);
-        video.play();
-      }
-      if (!playing && isPlaying()) {
-        log(`Video instrumentation: pausing video`);
-        video.pause();
-      }
-      let expectedVideoTime = videoTimeSeconds;
-      if (playing) {
-        expectedVideoTime += new Date() / 1000 - realTimeSeconds;
-      }
-      if (Math.abs(video.currentTime - expectedVideoTime) > 0.5) {
+    applyStateEvent: async (stateEvent) => {
+      try {
         log(
-          `Video instrumentation: setting video playback time to ${expectedVideoTime}s`
+          `Video instrumentation: received event ${JSON.stringify(
+            stateEvent
+          )} from another client`
         );
-        video.currentTime = expectedVideoTime;
+        const { playing, videoTimeSeconds, realTimeSeconds } = stateEvent;
+        if (playing && !isPlaying()) {
+          log(`Video instrumentation: unpausing video`);
+          actor.play(video);
+        }
+        if (!playing && isPlaying()) {
+          log(`Video instrumentation: pausing video`);
+          actor.pause(video);
+        }
+        let expectedVideoTime = videoTimeSeconds;
+        if (playing) {
+          expectedVideoTime += new Date() / 1000 - realTimeSeconds;
+        }
+        if (Math.abs(video.currentTime - expectedVideoTime) > 0.5) {
+          log(
+            `Video instrumentation: setting video playback time to ${expectedVideoTime}s`
+          );
+          actor.setCurrentTime(video, expectedVideoTime);
+        }
+        // Read the attributes back out from the video in case they were
+        // automatically rounded or something.
+        lastSetPlaying = isPlaying();
+        lastSetVideoTimeSeconds = video.currentTime;
+        lastSetRealTimeSeconds = new Date() / 1000;
+      } catch (err) {
+        logError(err);
       }
-      // Read the attributes back out from the video in case they were
-      // automatically rounded or something.
-      lastSetPlaying = isPlaying();
-      lastSetVideoTimeSeconds = video.currentTime;
-      lastSetRealTimeSeconds = new Date() / 1000;
     },
-    requestStateEvent: () => {
-      log(
-        `Video instrumentation: received request to broadcast state from another client`
-      );
-      const stateEvent = {
-        playing: !video.paused,
-        videoTimeSeconds: video.currentTime,
-        realTimeSeconds: new Date() / 1000,
-      };
-      log(
-        `Video instrumentation: broadcasting event ${JSON.stringify(
-          stateEvent
-        )} to other clients`
-      );
-      callback(stateEvent);
+    requestStateEvent: async () => {
+      try {
+        log(
+          `Video instrumentation: received request to broadcast state from another client`
+        );
+        const stateEvent = {
+          playing: !video.paused,
+          videoTimeSeconds: video.currentTime,
+          realTimeSeconds: new Date() / 1000,
+        };
+        log(
+          `Video instrumentation: broadcasting event ${JSON.stringify(
+            stateEvent
+          )} to other clients`
+        );
+        callback(stateEvent);
+      } catch (err) {
+        logError(err);
+      }
     },
   };
 };
@@ -333,6 +509,7 @@ const loadStorage = async () => {
     "hypercastInstance",
     "accessToken",
     "sessionId",
+    "siteOverrides",
   ]);
   // See option-defaults.js for definition of optionDefaults
   for (const [key, value] of Object.entries(optionDefaults)) {
@@ -345,21 +522,23 @@ const loadStorage = async () => {
 const hypercastInit = () => {
   const bus = getEventBus();
 
-  detectPrimaryVideo()
-    .get()
-    .then((video) =>
-      instrumentVideo(video, (event) =>
-        bus.triggerEvent("broadcastStateEvent", event)
-      )
-    )
-    .then((instrument) => {
-      bus.addHandler("applyStateEvent", instrument.applyStateEvent);
-      bus.addHandler("requestStateEvent", instrument.requestStateEvent);
-    })
-    .catch(logError);
-
   loadStorage()
-    .then(({ hypercastInstance, accessToken, sessionId }) => {
+    .then(({ hypercastInstance, accessToken, sessionId, siteOverrides }) => {
+      const videoActor = getVideoActor(siteOverrides);
+
+      detectPrimaryVideo()
+        .get()
+        .then((video) =>
+          instrumentVideo(video, videoActor, (event) =>
+            bus.triggerEvent("broadcastStateEvent", event)
+          )
+        )
+        .then((instrument) => {
+          bus.addHandler("applyStateEvent", instrument.applyStateEvent);
+          bus.addHandler("requestStateEvent", instrument.requestStateEvent);
+        })
+        .catch(logError);
+
       let websocket;
       let protocol = {
         sessionId: sessionId,
@@ -429,3 +608,5 @@ chrome.runtime.onMessage.addListener((req) => {
   }
   hypercastInit();
 });
+
+log(`Content script: waiting for user to click extension icon in toolbar`);

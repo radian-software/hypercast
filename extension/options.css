@@ -1,7 +1,14 @@
 body {
   padding-top: 60px;
+  padding-bottom: 60px;
 }
 
 #form {
   max-width: 500px;
+}
+
+/* https://stackoverflow.com/a/2032658 */
+#siteOverridesInput {
+  font-family: Consolas, Monaco, Lucida Console, Liberation Mono,
+    DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace;
 }

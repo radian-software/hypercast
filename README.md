@@ -9,21 +9,112 @@ and is not yet fully functional.
 
 ## Usage (for most people)
 
-Install the browser extension from GitHub Releases or from the Chrome
-Web Store (not yet available, since the Google review process is
-extremely slow) or [Firefox Add-ons
-site](https://addons.mozilla.org/en-US/firefox/addon/hypercast/).
-Then, open a video on any streaming platform and click the extension
-icon in the browser toolbar to create a watch party and copy a link
-for others to join. Hypercast does not stream the video; rather, it
-just synchronizes the playback of everyone in the party. As such,
-everyone needs to have access to the video you want to watch.
+### Installation
+
+**If you use Firefox,** you can install the add-on from the [Firefox
+Add-ons
+site](https://addons.mozilla.org/en-US/firefox/addon/hypercast/). This
+is the easiest way.
+
+Alternatively, you can download the latest ZIP file from GitHub
+Releases. To install from GitHub Releases, you either need to install
+the add-on temporarily via `about:debugging`, or switch to [Firefox
+Developer Edition](https://www.mozilla.org/en-US/firefox/developer/)
+so you can install it permanently. If installing from GitHub Releases,
+you will need to update manually.
+
+**If you use Chrome,** you unfortunately cannot install the extension
+from the Chrome Web Store at the present time, because Google takes
+numerous months with no feedback to "review" all submissions to the
+store.
+
+In Chrome, Hypercast operates in a degraded mode that does not support
+certain streaming sites, and cannot be customized to fix issues that
+come up. This is because Google recently removed support for
+extensions that allow users to customize website behavior, including
+most ad blockers (not surprising, since Google is an ad company and
+makes most of its money by selling access to your personal data).
+Already-published extensions are still runnable for now, but [they
+will all be deleted by Google in
+mid-2023](https://www.ghacks.net/2021/09/24/manifest-v2-chrome-extensions-will-stop-working-in-june-2023/),
+and it is already impossible to publish new ones. [Numerous complaints
+have been registered since 2019 by many community
+members](https://bugs.chromium.org/p/chromium/issues/detail?id=896897&desc=2#c23),
+but Google has ignored all of them. As a result, you should expect an
+inferior experience and more bugs when using Chrome. Unfortunately,
+there is no way to resolve this issue since it is Google which has
+made the decision to remove this functionality, against our wishes,
+and they made sure to leave no available workarounds. [May we suggest
+Firefox instead?](https://contrachrome.com/)
+
+However, if you cannot switch to a less user-hostile browser, you can
+still use Hypercast on a subset of streaming sites. To do this,
+download the latest ZIP file from GitHub Releases and install it by
+going to `chrome://extensions`, enabling developer mode (upper right
+corner), and loading the ZIP file as an unpacked extension.
+Unfortunately, Google does not allow you to enable automatic updates
+for extensions they have not personally approved, so you will have to
+install new updates manually.
+
+### Setup and usage
+
+Once you have the extension installed, go to the settings (on Firefox,
+this is accessed by selecting the add-on from the list of installed
+add-ons; on Chrome, this is accessed by right-clicking the extension
+icon in the toolbar). You and everyone you want to watch together with
+must enter the same "session ID". This can be any text; it is like a
+shared password. Click Save. The other settings can be left at their
+defaults.
+
+Once you have your session ID set, go to any streaming site and open a
+TV show, movie, or other video. Click the extension icon in the
+browser toolbar. When you do so, your video will be automatically
+synchronized with anyone else who is already watching. If you refresh
+the page or leave and come back, you have to click the extension icon
+again to re-sync.
+
+When you are synced, your play/pause/rewind/fast-forward operations
+are automatically applied to everyone else's video as well, and theirs
+are applied on your end. Everyone has control of the video.
+
+### Helpful information
+
+For some sites, Hypercast isn't able to automatically detect the video
+element to sync, so you won't be synced immediately upon clicking the
+extension icon. In this case, it falls back to waiting until the video
+is playing, and then it assumes that whichever video is playing is the
+one it should sync.
+
+Hypercast does not stream any video; rather, it just synchronizes the
+playback of everyone in the session. As such, everyone needs to have
+access to the video you want to watch, and you need to make sure
+everyone is actually watching the same video (e.g., by sending them
+the link using an instant messaging program).
+
+Note that if anyone in the session is using Hypercast version 0.0.9 or
+later, then everyone else has to as well. The same is true of version
+0.0.7; these two versions contain [breaking
+changes](https://en.wiktionary.org/wiki/breaking_change).
 
 ## Usage (for programmers)
+
+### Troubleshooting
+
+If you have issues, check the JavaScript console and filter for
+`Hypercast`. I tried to include verbose logs so that it is clear where
+things go wrong if they fail.
+
+### Self-hosting
 
 You can easily run your own instance of Hypercast if you want. This is
 nice because you know for sure that it will never change or go away,
 and you retain full ownership over your data.
+
+You probably don't need to run your own instance if you are just
+concerned about privacy, because all messages routed through Hypercast
+are end-to-end encrypted using the session ID that you configure in
+the browser extension settings; since version 0.0.7 this ID is never
+sent to the server without first being SHA-256 hashed.
 
 Instructions for [Railway](https://railway.app/) (free):
 
@@ -111,9 +202,10 @@ risk so the extension is written to be as secure as possible. This is
 accomplished in a few ways:
 
 * The extension only requests permissions for the most popular
-  streaming websites by default. You can temporarily turn it on for
-  other websites, or you can download an alternative version of the
-  extension that has more websites enabled by default if you prefer.
+  streaming websites by default. (Coming soon:) You can temporarily
+  turn it on for other websites, or you can download an alternative
+  version of the extension that has more websites enabled by default
+  if you prefer.
 * The server is not trusted; even if an attacker fully controls the
   server, it is impossible for them to read any data sent by the
   extension, or send any data to the extension from their end. The

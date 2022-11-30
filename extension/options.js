@@ -4,6 +4,7 @@ const fields = {
   hypercastInstance: "hypercastInstanceInput",
   accessToken: "accessTokenInput",
   sessionId: "sessionIdInput",
+  siteOverrides: "siteOverridesInput",
 };
 
 const saveButton = document.getElementById("saveButton");
@@ -26,6 +27,13 @@ async function main() {
     });
   }
   saveButton.addEventListener("click", async () => {
+    // Set defaults again if user cleared the field(s) manually
+    for (const [key, id] of Object.entries(fields)) {
+      const elt = document.getElementById(id);
+      if (optionDefaults[key] && !elt.value) {
+        elt.value = optionDefaults[key];
+      }
+    }
     await new Promise((resolve) =>
       chrome.storage.sync.set(
         Object.fromEntries(

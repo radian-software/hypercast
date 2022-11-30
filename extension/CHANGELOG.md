@@ -5,6 +5,34 @@ The format is based on [Keep a Changelog].
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 
+## 0.0.11
+
+There are significant internal changes to support using special
+behavior on specific streaming sites, to allow support for sites that
+don't follow modern internet standards for video playback. This works
+by letting you configure, for a given site, replacements for the
+default "play", "pause", and "go to timestamp" functions that
+Hypercast would normally use. The interface is not especially
+user-friendly at this stage; you can edit a raw JSON object in the
+settings dialog. This will be improved in future, and documentation
+added. The default setting enables support for Hulu, which should now
+function properly most of the time, instead of not working at all,
+which was the previous behavior. Note that this feature does not work
+on Chrome due to limitations imposed by Google, which are unlikely to
+ever be lifted. Therefore, working sync for Hulu (and other sites you
+may configure with special behavior) is only supported on Firefox.
+(You get an error message if you try to activate Hypercast on Hulu in
+Chrome, rather than the previous behavior of it turning on and
+breaking everything.)
+
+The options dialog also has padding on the bottom now, so it looks
+less terrible in Firefox.
+
+The message "Content script: waiting for user to click extension icon
+in toolbar" is now logged in the browser console. This hopefully makes
+it more clear why nothing further happens on page load without manual
+user interaction.
+
 ## 0.0.10
 
 Other clients will be paused when your video starts buffering, and
