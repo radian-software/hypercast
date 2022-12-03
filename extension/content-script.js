@@ -1,5 +1,13 @@
 "use strict";
 
+// The whole content script is for now in one file because splitting
+// it up requires a bit of work given how browser extension packaging
+// works. To mitigate the organizational concerns of having everything
+// in one file, I'm trying to separate the functions as much as
+// possible and practice dependency injection, so that you can look at
+// each top-level function individually, and we can write tests for
+// each function individually.
+
 const log = (...msg) => {
   console.log(`[Hypercast Debug]`, ...msg);
 };
@@ -10,6 +18,8 @@ const logError = (...msg) => {
 
 log("Content script: initializing");
 
+// Scan the page and return a list of <video> elements that might be
+// the main content that should be synced.
 const getCandidateVideos = () => {
   return [...document.querySelectorAll("video")].filter((video) => {
     const rect = video.getBoundingClientRect();
@@ -17,6 +27,20 @@ const getCandidateVideos = () => {
   });
 };
 
+// This function wraps all the logic responsible for finding the main
+// <video> element that should be synced. It calls getCandidateVideos
+// as a subroutine. When you first call detectPrimaryVideo, it does an
+// initial scan; if exactly one <video> is found, it returns that one.
+// Otherwise, it goes into an async loop checking which videos are
+// currently playing, and once at least one starts playing, it returns
+// that one.
+//
+// To handle the async complexities, this function actually returns
+// (synchronously) an object with an async get() method that returns
+// the chosen <video> element. Actually, it's a little more clever
+// than that, in that scanning for active <video> elements continues
+// until you call the get() method, at which point whichever one is
+// currently playing is returned.
 const detectPrimaryVideo = () => {
   let guessedPrimaryVideo = null;
   let foundOne = null;
@@ -84,8 +108,12 @@ const detectPrimaryVideo = () => {
   };
 };
 
+// Global variable used for sketchyEval.
 let sketchyEvalCounter = 0;
 
+// Truncate a string to a given maximum length. If it's longer, append
+// a suffix to indicate it was truncated, making sure the suffix
+// doesn't go past the max length.
 let truncateCode = (code, maxLength) => {
   let suffix = "... (truncated)";
   let truncatedCode = code;
@@ -95,8 +123,13 @@ let truncateCode = (code, maxLength) => {
   return truncatedCode;
 };
 
+// Evaluate JavaScript code in the context of the page. This is needed
+// because if you use eval in a content script normally, it has no
+// access to the DOM. Does not wait for the evaluation to finish
+// before returning. See sketchyEvalWithReturn if you need that.
+//
 // https://stackoverflow.com/a/9517879
-// Only works on Manifest V2, obviously
+// Only works on Manifest V2, obviously, so Firefox-only
 const sketchyEval = (code, opts) => {
   if (!(opts && opts.silent)) {
     log(`Video actor evaluator: executing ${truncateCode(code, 256)}`);
@@ -114,6 +147,10 @@ const sketchyEval = (code, opts) => {
 //
 // Not currently used, but will be necessary if we decide any of the
 // video actor custom methods needs to return a value
+//
+// Has a 1-second timeout and will reject the promise if something
+// goes wrong. Otherwise, will resolve with the evaluation result, or
+// reject with an exception thrown.
 //
 // https://stackoverflow.com/a/19312198
 const sketchyEvalWithReturn = async (code) => {
@@ -154,6 +191,12 @@ const sketchyEvalWithReturn = async (code) => {
   }
 };
 
+// This function wraps the logic for handling site overrides.
+// Basically it returns an object that has pause(), play(), and
+// setCurrentTime() methods that take a <video> element. By default
+// these will just call the corresponding html5 methods on the
+// element, but if one of the user's site overrides applies to the
+// current site, it will run the code in that override instead.
 const getVideoActor = (siteOverridesRaw) => {
   let selectedOverride = null;
   let selectedHostname = null;
@@ -248,11 +291,32 @@ const getVideoActor = (siteOverridesRaw) => {
   return actor;
 };
 
+// This function handles all the logic around syncing playback state
+// to and from a <video> element. You pass it a callback which is
+// called whenever the <video> state is updated, and it returns a
+// function you can call to update the <video> state based on an event
+// from another client. The arguments to both these functions are
+// state events as defined in the event protocol docs, i.e. objects
+// with "playing", "videoTimeSeconds", etc properties. To handle site
+// overrides, instrumentVideo invokes <video> methods via the passed
+// video actor (see getVideoActor), but at present it reads out the
+// state directly from the <video> element, which may or may not
+// always be correct.
+//
+// The return value is an object with an applyStateEvent method that
+// updates the <video> with the given state event, and a
+// requestStateEvent method that triggers an invocation of the
+// provided callback with a state event, just like if the <video>
+// element had had an update.
 const instrumentVideo = (video, actor, callback) => {
   log(`Video instrumentation: installing event listeners`);
   let lastSetPlaying = null;
   let lastSetVideoTimeSeconds = null;
   let lastSetRealTimeSeconds = null;
+  // For the purposes of synchronization the video is only playing if
+  // it is actually advancing the playback position, not just if it
+  // intends to play in the future but is still buffering. Wrap that
+  // up in a helper function to use everywhere.
   const isPlaying = () =>
     !video.paused && video.readyState >= video.HAVE_FUTURE_DATA;
   for (const event of ["play", "canplay", "pause", "waiting", "seeked"]) {
@@ -316,8 +380,16 @@ const instrumentVideo = (video, actor, callback) => {
         }
         let expectedVideoTime = videoTimeSeconds;
         if (playing) {
+          // Offset expected playback position by the amount of
+          // network latency if the other client was playing. If the
+          // other client is no longer playing we'll get another event
+          // later that will correct us.
           expectedVideoTime += new Date() / 1000 - realTimeSeconds;
         }
+        // Only update the playback if there is significant drift,
+        // otherwise we risk falling into an infinite loop of clients
+        // updating each other, because you can never get them exactly
+        // in sync to floating point equality.
         if (Math.abs(video.currentTime - expectedVideoTime) > 0.5) {
           log(
             `Video instrumentation: setting video playback time to ${expectedVideoTime}s`
@@ -356,6 +428,12 @@ const instrumentVideo = (video, actor, callback) => {
   };
 };
 
+// This is a helper function that encapsulates the exponential backoff
+// algorithm. You give it a callback task which is called right away,
+// if that errors or rejects, then it's tried again after a random
+// amount of time not more than initialDelaySeconds, if it fails
+// again, the process repeats but initialDelaySeconds is multiplied by
+// retryMultiplier.
 const withExponentialBackoff = async (
   task,
   initialDelaySeconds,
@@ -375,6 +453,26 @@ const withExponentialBackoff = async (
   }
 };
 
+// This function wraps the annoying bits of handling a websocket
+// connection, including retries. There is no message queuing or
+// retries, but if the socket gets an error, then it will
+// automatically reconnect with exponential backoff, and messages sent
+// after the reconnection will automatically go to the new socket.
+//
+// You pass the address for the WebSocket constructor, and get back an
+// object that basically acts like a WebSocket, but transparently
+// handles the reconnection logic (and potentially things like queuing
+// and retries in the future). Specifically it has a send() method
+// that behaves the same as the normal one. This may throw an error if
+// the socket can't send when you call it, but there's no guarantee
+// due to both API limitations and lack of error handling on our end.
+//
+// You also pass an onopen callback that gets called with the virtual
+// websocket object each time it's opened or reopened (this is
+// optional), and an onmessage callback that gets called with each
+// incoming message. This callback differs from the standard websocket
+// event in that you are passed the actual message string rather than
+// an event object.
 const dialWebsocket = (addr, onmessage, onopen) => {
   let socket = null;
   const virtualSocket = {
@@ -436,6 +534,20 @@ const dialWebsocket = (addr, onmessage, onopen) => {
   return virtualSocket;
 };
 
+// This function implements end-to-end encryption as a transparent
+// wrapper for an arbitrary protocol-agnostic pair of send and receive
+// functions, using the provided session ID as an opaque password from
+// which private keys are derived. Basically, if you have a function
+// you were calling with a string to send it to another client, and a
+// function you were calling with a string you got back from that
+// client, you can swap those functions out with the versions returned
+// by withEncryption and it'll behave exactly the same from your point
+// of view, except that communications between the clients will be
+// encrypted to the shared session ID. The hashed session ID is also
+// included as a property in the returned object, so the input and
+// output format of this function are essentially interchangeable (you
+// could even chain multiple encryption layers, though this would be
+// largely pointless).
 const withEncryption = ({ sessionId, send, receive }) => {
   const md = forge.md.sha256.create();
   md.update(sessionId);
@@ -480,6 +592,15 @@ const withEncryption = ({ sessionId, send, receive }) => {
   };
 };
 
+// This function abstracts a generic message passing implementation
+// based on the event bus paradigm. You call the returned addHandler
+// method with an event type (string) and a function to be called when
+// that event is triggered, then you call the triggerEvent function
+// with the same event type and some data, and the callback you
+// provided earlier is passed that data. There can only be one handler
+// for each event type, if you set a new one then the old one is
+// overwritten. If there is no handler for an event then it's
+// discarded and a warning is logged.
 const getEventBus = () => {
   const handlers = {};
   return {
@@ -504,6 +625,8 @@ const getEventBus = () => {
   };
 };
 
+// This just loads the user options as a json object from browser
+// extension persistent storage and returns them.
 const loadStorage = async () => {
   const options = await chrome.storage.sync.get([
     "hypercastInstance",
@@ -519,6 +642,7 @@ const loadStorage = async () => {
   return options;
 };
 
+// Main entry point, gets everything started.
 const hypercastInit = () => {
   const bus = getEventBus();
 
@@ -597,6 +721,9 @@ const hypercastInit = () => {
 
 let hypercastInitDone = false;
 
+// Wait until user clicks to activate the extension, then set
+// everything up by invoking hypercastInit. Do it once no matter how
+// many times they click.
 chrome.runtime.onMessage.addListener((req) => {
   if (req.event !== "hypercastInit") {
     return;
