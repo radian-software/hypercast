@@ -725,7 +725,7 @@ let hypercastInitDone = false;
 // everything up by invoking hypercastInit. Do it once no matter how
 // many times they click.
 chrome.runtime.onMessage.addListener((req) => {
-  if (req.event !== "hypercastInit") {
+  if (req.event !== "hypercastBrowserAction") {
     return;
   }
   if (hypercastInitDone) {
