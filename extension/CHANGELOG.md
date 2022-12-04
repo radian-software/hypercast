@@ -33,6 +33,13 @@ in toolbar" is now logged in the browser console. This hopefully makes
 it more clear why nothing further happens on page load without manual
 user interaction.
 
+When you click the extension icon, an overlay is now displayed with
+some basic status about what the extension is doing, which makes it
+easier to troubleshoot without having to look at the debug logs. You
+can minimize the overlay to an icon and re-expand it by clicking the
+minimized icon. The appearance of the overlay is rough and will be
+improved in future.
+
 ## 0.0.10
 
 Other clients will be paused when your video starts buffering, and

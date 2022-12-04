@@ -472,8 +472,10 @@ const withExponentialBackoff = async (
 // optional), and an onmessage callback that gets called with each
 // incoming message. This callback differs from the standard websocket
 // event in that you are passed the actual message string rather than
-// an event object.
-const dialWebsocket = (addr, onmessage, onopen) => {
+// an event object. There is an optional onclose callback if you want
+// to be notified when the socket closes and will be redialed, as
+// well.
+const dialWebsocket = (addr, { onmessage, onopen, onclose }) => {
   let socket = null;
   const virtualSocket = {
     send: (msg) => {
@@ -518,6 +520,9 @@ const dialWebsocket = (addr, onmessage, onopen) => {
       // opened already.
       if (numConns === savedNumConns) {
         log(`Websocket got error, redialing`);
+        if (onclose) {
+          onclose();
+        }
         redial();
       }
     };
@@ -525,6 +530,9 @@ const dialWebsocket = (addr, onmessage, onopen) => {
       // Same as above.
       if (numConns === savedNumConns) {
         log(`Websocket was closed, redialing`);
+        if (onclose) {
+          onclose();
+        }
         redial();
       }
     };
@@ -609,11 +617,13 @@ const getEventBus = () => {
       handlers[eventType] = handler;
     },
     triggerEvent: (eventType, data) => {
-      log(
-        `Message bus: received ${eventType} event with data ${JSON.stringify(
-          data
-        )}`
-      );
+      let dataDesc = JSON.stringify(data);
+      // If it is something like a function, the json representation
+      // just turns into undefined, which is not helpful
+      if (!dataDesc) {
+        dataDesc = "" + data;
+      }
+      log(`Message bus: received ${eventType} event with data ${dataDesc}`);
       if (handlers[eventType]) {
         handlers[eventType](data);
       } else {
@@ -642,21 +652,157 @@ const loadStorage = async () => {
   return options;
 };
 
+// This function takes an object with css keys and values and turns it
+// into a single string you can set as the style attribute on an html
+// element.
+//
+// This probably doesn't work in general but it works for what I'm
+// using it for right now.
+const createStyleString = (styleMap) => {
+  let strs = [];
+  for (const [key, val] of Object.entries(styleMap)) {
+    strs.push(`${key}: ${val};`);
+  }
+  return strs.join(" ");
+};
+
+// This function spawns the overlay UI on top of the page and then
+// handles all subsequent updates. The approach is kind of like React,
+// where the overlay is rendered based on a state object, and a
+// function is returned that allows you to update this state by
+// passing in a transformer. After the state is updated the overlay is
+// automatically re-rendered.
+const showOverlay = () => {
+  // Forward declaration to resolve circular dependency
+  let transformState;
+  // Pure function to generate the overlay contents based on state
+  // object, kind of like a simple version of React
+  const createContents = (state) => {
+    log(`Overlay: rendering with state ${JSON.stringify(state)}`);
+    const header = document.createElement("b");
+    header.innerText = "Hypercast status";
+    const websocketState = document.createElement("p");
+    websocketState.innerText = `Websocket: ${state.websocketState}`;
+    const videoState = document.createElement("p");
+    videoState.innerText = `Video instrumentation: ${state.videoState}`;
+    const collapseToggle = document.createElement("button");
+    collapseToggle.style = createStyleString(
+      Object.assign(
+        {},
+        {
+          position: "absolute",
+          right: "0",
+          bottom: "0",
+          width: "20px",
+          height: "20px",
+          visibility: "visible",
+          margin: "10px",
+          padding: "0",
+          border: "0",
+        },
+        state.overlayExpanded ? {} : { "background-color": "transparent" }
+      )
+    );
+    if (state.overlayExpanded) {
+      collapseToggle.innerText = "×";
+    } else {
+      const icon = document.createElement("img");
+      // This base64 string comes from icon128.js
+      icon.src = `data:image/png;base64,${hypercastIcon128px}`;
+      icon.alt = "Hypercast icon";
+      icon.style = createStyleString({
+        width: "100%",
+        height: "100%",
+        opacity: "100%",
+      });
+      collapseToggle.replaceChildren(icon);
+    }
+    // Clicking the button will toggle whether the overlay is expanded
+    collapseToggle.addEventListener("click", () =>
+      transformState((state) =>
+        Object.assign({}, state, { overlayExpanded: !state.overlayExpanded })
+      )
+    );
+    // Put components together.
+    const overlay = document.createElement("div");
+    overlay.style = createStyleString(
+      Object.assign(
+        {},
+        {
+          position: "fixed",
+          width: "200px",
+          height: "100px",
+          background: "lightgray",
+          right: "0",
+          top: "0",
+          "z-index": "10000",
+          margin: "10px",
+          padding: "10px",
+        },
+        state.overlayExpanded ? {} : { visibility: "hidden" }
+      )
+    );
+    overlay.replaceChildren(header, websocketState, videoState, collapseToggle);
+    return overlay;
+  };
+  // Create toplevel container
+  const wrapper = document.createElement("div");
+  wrapper.id = "hypercastOverlay";
+  // Setup initial state
+  let state = {
+    overlayExpanded: true,
+    websocketState: "not yet initialized",
+    videoState: "not yet initialized",
+  };
+  // Populate toplevel container with initial contents
+  wrapper.replaceChildren(createContents(state));
+  // Put the whole thing on the page
+  document.querySelector("body").append(wrapper);
+  // Return a function we can use to push updates to the overlay from
+  // elsewhere in the code
+  transformState = (transform) => {
+    state = transform(state);
+    wrapper.replaceChildren(createContents(state));
+  };
+  return { transformState };
+};
+
 // Main entry point, gets everything started.
 const hypercastInit = () => {
   const bus = getEventBus();
+
+  const overlay = showOverlay();
+  bus.addHandler("transformOverlayState", overlay.transformState);
+
+  // Convenience shorthand for doing simple updates to the overlay
+  // state.
+  const updateOverlayState = (obj) => {
+    log(`Overlay: updating state with patch ${JSON.stringify(obj)}`);
+    bus.triggerEvent("transformOverlayState", (state) =>
+      Object.assign({}, state, obj)
+    );
+  };
 
   loadStorage()
     .then(({ hypercastInstance, accessToken, sessionId, siteOverrides }) => {
       const videoActor = getVideoActor(siteOverrides);
 
+      updateOverlayState({
+        videoState:
+          "searching for video elements on the page; if this takes more than a second then try pressing play on your video, or refreshing the page",
+      });
+
       detectPrimaryVideo()
         .get()
-        .then((video) =>
-          instrumentVideo(video, videoActor, (event) =>
+        .then((video) => {
+          const instr = instrumentVideo(video, videoActor, (event) =>
             bus.triggerEvent("broadcastStateEvent", event)
-          )
-        )
+          );
+          updateOverlayState({
+            videoState: "active; able to control video playback",
+          });
+          return instr;
+        })
         .then((instrument) => {
           bus.addHandler("applyStateEvent", instrument.applyStateEvent);
           bus.addHandler("requestStateEvent", instrument.requestStateEvent);
@@ -705,15 +851,27 @@ const hypercastInit = () => {
       if (accessToken) {
         url += `token=${accessToken}`;
       }
-      websocket = dialWebsocket(url, protocol.receive, () => {
-        log(
-          `Connected to websocket, requesting current playback state from other clients`
-        );
-        protocol.send(
-          JSON.stringify({
-            event: "requestState",
-          })
-        );
+      updateOverlayState({
+        websocketState: "offline; attempting to connect to server",
+      });
+      websocket = dialWebsocket(url, {
+        onmessage: protocol.receive,
+        onopen: () => {
+          updateOverlayState({ websocketState: "online; connected to server" });
+          log(
+            `Connected to websocket, requesting current playback state from other clients`
+          );
+          protocol.send(
+            JSON.stringify({
+              event: "requestState",
+            })
+          );
+        },
+        onclose: () =>
+          updateOverlayState({
+            websocketState:
+              "offline; disconnected due to error, attempting to reconnect",
+          }),
       });
     })
     .catch(logError);
