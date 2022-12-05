@@ -40,6 +40,28 @@ can minimize the overlay to an icon and re-expand it by clicking the
 minimized icon. The appearance of the overlay is rough and will be
 improved in future.
 
+The overlay can now be used to enable and disable syncing. If
+something bugs out and you just want to continue watching the video,
+you can toggle sync off. This divorces your client from the session in
+a reversible fashion, without you needing to refresh the page. Your
+updates will not affect other clients, and other clients' updates will
+not affect you. You can re-enable sync at any time, which will move
+your playback state to match other clients'. When sync is disabled,
+another checkbox appears that allows you to enable skew. This is an
+advanced feature to work around dumb-as-nails anti-consumer
+anti-features present in sites like Hulu, where depending on ad
+playback, different people can have different episode runtimes and
+different playback positions for the same moment in a TV show. The
+usage is as follows: if your playback is out of sync after an ad,
+then pause playback, disable sync, manually synchronize your playback
+(either you or others can adjust playback position to a known-good
+point, like a scene transition), enable skew, re-enable sync. If skew
+is enabled when re-enabling sync, your current offset from other
+clients' shared playback position will be stored (locally, does not
+persist after page refresh) and transparently subtracted out from all
+communications with other clients. This means sync works as before,
+but with a fixed offset between your playback position and others'.
+
 ## 0.0.10
 
 Other clients will be paused when your video starts buffering, and

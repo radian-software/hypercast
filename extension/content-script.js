@@ -291,25 +291,88 @@ const getVideoActor = (siteOverridesRaw) => {
   return actor;
 };
 
+// This is a simple function that does data interchange and basic
+// processing around sync controls exposed in the overlay. Basically,
+// the returned object maintains internal state for whether sync and
+// skew are enabled. You can check the values at any time, and also
+// update them by passing in a {syncEnabled, skewEnabled} object. The
+// set method is idempotent, and when it detects that sync has gone
+// from false to true, it triggers the passed callback. Not sure if
+// this object is a great abstraction, but it is what we are using to
+// bridge data between the video instrumentation module and the
+// overlay state controller right now.
+const getSyncController = ({ syncReenabledCallback }) => {
+  let syncEnabled = true;
+  let skewEnabled = false;
+  return {
+    syncEnabled: () => syncEnabled,
+    skewEnabled: () => skewEnabled,
+    updateSyncState: (newState) => {
+      const syncWasEnabled = syncEnabled;
+      if (syncEnabled !== newState.syncEnabled) {
+        log(
+          `Sync controller: updating syncEnabled state from ${syncEnabled} to ${newState.syncEnabled}`
+        );
+        syncEnabled = newState.syncEnabled;
+      }
+      if (skewEnabled !== newState.skewEnabled) {
+        log(
+          `Sync controller: updating skewEnabled state from ${skewEnabled} to ${newState.skewEnabled}`
+        );
+        skewEnabled = newState.skewEnabled;
+      }
+      if (syncEnabled && !syncWasEnabled) {
+        log(`Sync controller: triggering sync-reenabled callback`);
+        syncReenabledCallback();
+      }
+    },
+  };
+};
+
 // This function handles all the logic around syncing playback state
 // to and from a <video> element. You pass it a callback which is
 // called whenever the <video> state is updated, and it returns a
 // function you can call to update the <video> state based on an event
 // from another client. The arguments to both these functions are
 // state events as defined in the event protocol docs, i.e. objects
-// with "playing", "videoTimeSeconds", etc properties. To handle site
-// overrides, instrumentVideo invokes <video> methods via the passed
-// video actor (see getVideoActor), but at present it reads out the
-// state directly from the <video> element, which may or may not
-// always be correct.
+// with "playing", "videoTimeSeconds", etc properties.
+//
+// To handle site overrides, instrumentVideo invokes <video> methods
+// via the passed video actor (see getVideoActor), but at present it
+// reads out the state directly from the <video> element, which may or
+// may not always be correct.
+//
+// You also pass in a syncController object which has a syncEnabled
+// method that returns true or false. Whenever the video instrumentor
+// receives an incoming state event, it consults the sync controller.
+// If sync is enabled, the state event is applied onto the local
+// <video> element. If sync is disabled, then this is not done, but
+// the state event is recorded so that it is possible to determine the
+// offset of this client from the other(s). When sync is re-enabled
+// and another state event has been received (when sync is re-enabled,
+// the client is expected to request state events from other clients),
+// the skewEnabled method on the sync controller is consulted. If this
+// returns false then the local offset is discarded and playback of
+// state events resumes per usual. However, if it returns true, then
+// the current client offset as determined by the just-received state
+// event is saved and then subtracted from all future timestamps
+// (until another desync/resync/reskew cycle is completed). There is
+// no way to remove skew except setting another skew, which overwrites
+// the original skew.
+//
+// When sync is disabled, state events are of course also not
+// broadcast to the provided callback; that is, sync enablement is
+// bidirectional.
 //
 // The return value is an object with an applyStateEvent method that
 // updates the <video> with the given state event, and a
 // requestStateEvent method that triggers an invocation of the
 // provided callback with a state event, just like if the <video>
 // element had had an update.
-const instrumentVideo = (video, actor, callback) => {
+const instrumentVideo = (video, actor, syncController, callback) => {
   log(`Video instrumentation: installing event listeners`);
+  let appliedSkewSeconds = 0;
+  let syncWasEnabled = true;
   let lastSetPlaying = null;
   let lastSetVideoTimeSeconds = null;
   let lastSetRealTimeSeconds = null;
@@ -323,6 +386,12 @@ const instrumentVideo = (video, actor, callback) => {
     video.addEventListener(event, async () => {
       try {
         log(`Video instrumentation: received ${event} event from <video>`);
+        if (!syncController.syncEnabled()) {
+          log(`Video instrumentation: ignoring event as sync is disabled`);
+          // Record this for later
+          syncWasEnabled = false;
+          return;
+        }
         if (
           // If we have previously applied an event...
           lastSetRealTimeSeconds &&
@@ -347,13 +416,14 @@ const instrumentVideo = (video, actor, callback) => {
         }
         const stateEvent = {
           playing: isPlaying(),
-          videoTimeSeconds: video.currentTime,
+          // Make sure to account for skew when sending event back out
+          videoTimeSeconds: video.currentTime - appliedSkewSeconds,
           realTimeSeconds: new Date() / 1000,
         };
         log(
           `Video instrumentation: broadcasting event ${JSON.stringify(
             stateEvent
-          )} to other clients`
+          )} to other clients (skew ${appliedSkewSeconds})`
         );
         callback(stateEvent);
       } catch (err) {
@@ -367,40 +437,64 @@ const instrumentVideo = (video, actor, callback) => {
         log(
           `Video instrumentation: received event ${JSON.stringify(
             stateEvent
-          )} from another client`
+          )} from another client (current skew ${appliedSkewSeconds})`
         );
-        const { playing, videoTimeSeconds, realTimeSeconds } = stateEvent;
-        if (playing && !isPlaying()) {
-          log(`Video instrumentation: unpausing video`);
-          actor.play(video);
+        // This couple of if statements implement the much more
+        // verbose description of the sync controller behavior from
+        // the docstring up above.
+        if (syncController.syncEnabled()) {
+          const { playing, videoTimeSeconds, realTimeSeconds } = stateEvent;
+          if (playing && !isPlaying()) {
+            log(`Video instrumentation: unpausing video`);
+            actor.play(video);
+          }
+          if (!playing && isPlaying()) {
+            log(`Video instrumentation: pausing video`);
+            actor.pause(video);
+          }
+          let expectedVideoTime = videoTimeSeconds;
+          if (playing) {
+            // Offset expected playback position by the amount of
+            // network latency if the other client was playing. If the
+            // other client is no longer playing we'll get another event
+            // later that will correct us.
+            expectedVideoTime += new Date() / 1000 - realTimeSeconds;
+          }
+          if (!syncWasEnabled && syncController.skewEnabled()) {
+            // Update the skew based on the current client offset,
+            // only if sync was previously not enabled but has now
+            // been re-enabled, and skew updates are turned on.
+            const oldSkew = appliedSkewSeconds;
+            appliedSkewSeconds = video.currentTime - expectedVideoTime;
+            log(
+              `Video instrumentation: updating skew to ${video.currentTime} - ${expectedVideoTime} = ${appliedSkewSeconds}, from previous value of ${oldSkew}`
+            );
+          } else {
+            // Otherwise, just add the currently applied skew to the
+            // expected video time before applying to the local
+            // <video> element.
+            expectedVideoTime += appliedSkewSeconds;
+          }
+          // Only update the playback if there is significant drift,
+          // otherwise we risk falling into an infinite loop of clients
+          // updating each other, because you can never get them exactly
+          // in sync to floating point equality.
+          if (Math.abs(video.currentTime - expectedVideoTime) > 0.5) {
+            log(
+              `Video instrumentation: setting video playback time to ${expectedVideoTime}s`
+            );
+            actor.setCurrentTime(video, expectedVideoTime);
+          }
+          // Read the attributes back out from the video in case they were
+          // automatically rounded or something.
+          lastSetPlaying = isPlaying();
+          lastSetVideoTimeSeconds = video.currentTime;
+          lastSetRealTimeSeconds = new Date() / 1000;
+          syncWasEnabled = true;
+        } else {
+          log(`Video instrumentation: ignoring event as sync is disabled`);
+          syncWasEnabled = false;
         }
-        if (!playing && isPlaying()) {
-          log(`Video instrumentation: pausing video`);
-          actor.pause(video);
-        }
-        let expectedVideoTime = videoTimeSeconds;
-        if (playing) {
-          // Offset expected playback position by the amount of
-          // network latency if the other client was playing. If the
-          // other client is no longer playing we'll get another event
-          // later that will correct us.
-          expectedVideoTime += new Date() / 1000 - realTimeSeconds;
-        }
-        // Only update the playback if there is significant drift,
-        // otherwise we risk falling into an infinite loop of clients
-        // updating each other, because you can never get them exactly
-        // in sync to floating point equality.
-        if (Math.abs(video.currentTime - expectedVideoTime) > 0.5) {
-          log(
-            `Video instrumentation: setting video playback time to ${expectedVideoTime}s`
-          );
-          actor.setCurrentTime(video, expectedVideoTime);
-        }
-        // Read the attributes back out from the video in case they were
-        // automatically rounded or something.
-        lastSetPlaying = isPlaying();
-        lastSetVideoTimeSeconds = video.currentTime;
-        lastSetRealTimeSeconds = new Date() / 1000;
       } catch (err) {
         logError(err);
       }
@@ -410,17 +504,22 @@ const instrumentVideo = (video, actor, callback) => {
         log(
           `Video instrumentation: received request to broadcast state from another client`
         );
-        const stateEvent = {
-          playing: !video.paused,
-          videoTimeSeconds: video.currentTime,
-          realTimeSeconds: new Date() / 1000,
-        };
-        log(
-          `Video instrumentation: broadcasting event ${JSON.stringify(
-            stateEvent
-          )} to other clients`
-        );
-        callback(stateEvent);
+        if (syncController.syncEnabled()) {
+          const stateEvent = {
+            playing: !video.paused,
+            // Make sure to account for skew when sending event back out
+            videoTimeSeconds: video.currentTime - appliedSkewSeconds,
+            realTimeSeconds: new Date() / 1000,
+          };
+          log(
+            `Video instrumentation: broadcasting event ${JSON.stringify(
+              stateEvent
+            )} to other clients (skew ${appliedSkewSeconds})`
+          );
+          callback(stateEvent);
+        } else {
+          log(`Video instrumentation: ignoring request as sync is disabled`);
+        }
       } catch (err) {
         logError(err);
       }
@@ -672,7 +771,11 @@ const createStyleString = (styleMap) => {
 // function is returned that allows you to update this state by
 // passing in a transformer. After the state is updated the overlay is
 // automatically re-rendered.
-const showOverlay = () => {
+//
+// For dependency injection, you pass a callback that is invoked with
+// a {syncEnabled, skewEnabled} object to represent the sync state,
+// whenever this is updated.
+const showOverlay = ({ updateSyncState }) => {
   // Forward declaration to resolve circular dependency
   let transformState;
   // Pure function to generate the overlay contents based on state
@@ -723,6 +826,44 @@ const showOverlay = () => {
         Object.assign({}, state, { overlayExpanded: !state.overlayExpanded })
       )
     );
+    const syncToggle = document.createElement("input");
+    syncToggle.type = "checkbox";
+    syncToggle.id = "hypercastOverlaySyncToggle";
+    if (state.syncEnabled) {
+      syncToggle.checked = true;
+    }
+    syncToggle.addEventListener("change", () =>
+      transformState((state) =>
+        Object.assign({}, state, {
+          syncEnabled: syncToggle.checked,
+          // Disable skew when turning sync off, that way people don't
+          // get surprised.
+          skewEnabled: state.skewEnabled && syncToggle.checked,
+        })
+      )
+    );
+    const syncLabel = document.createElement("label");
+    syncLabel.for = syncToggle.id;
+    syncLabel.innerText = "Enable syncing";
+    const skewElts = [];
+    if (!state.syncEnabled) {
+      const skewToggle = document.createElement("input");
+      skewToggle.type = "checkbox";
+      if (state.skewEnabled) {
+        skewToggle.checked = true;
+      }
+      skewToggle.addEventListener("change", () =>
+        transformState((state) =>
+          Object.assign({}, state, {
+            skewEnabled: skewToggle.checked,
+          })
+        )
+      );
+      const skewLabel = document.createElement("label");
+      skewLabel.for = skewToggle.id;
+      skewLabel.innerText = "Skew sync to current offset when re-enabling";
+      skewElts.push(skewToggle, skewLabel);
+    }
     // Put components together.
     const overlay = document.createElement("div");
     overlay.style = createStyleString(
@@ -742,7 +883,15 @@ const showOverlay = () => {
         state.overlayExpanded ? {} : { visibility: "hidden" }
       )
     );
-    overlay.replaceChildren(header, websocketState, videoState, collapseToggle);
+    overlay.replaceChildren(
+      header,
+      websocketState,
+      videoState,
+      syncToggle,
+      syncLabel,
+      ...skewElts,
+      collapseToggle
+    );
     return overlay;
   };
   // Create toplevel container
@@ -753,6 +902,8 @@ const showOverlay = () => {
     overlayExpanded: true,
     websocketState: "not yet initialized",
     videoState: "not yet initialized",
+    syncEnabled: true,
+    skewEnabled: false,
   };
   // Populate toplevel container with initial contents
   wrapper.replaceChildren(createContents(state));
@@ -763,6 +914,11 @@ const showOverlay = () => {
   transformState = (transform) => {
     state = transform(state);
     wrapper.replaceChildren(createContents(state));
+    // Idempotent
+    updateSyncState({
+      syncEnabled: state.syncEnabled,
+      skewEnabled: state.skewEnabled,
+    });
   };
   return { transformState };
 };
@@ -771,7 +927,13 @@ const showOverlay = () => {
 const hypercastInit = () => {
   const bus = getEventBus();
 
-  const overlay = showOverlay();
+  const syncController = getSyncController({
+    syncReenabledCallback: () => bus.triggerEvent("triggerStateRequest"),
+  });
+
+  const overlay = showOverlay({
+    updateSyncState: syncController.updateSyncState,
+  });
   bus.addHandler("transformOverlayState", overlay.transformState);
 
   // Convenience shorthand for doing simple updates to the overlay
@@ -795,8 +957,11 @@ const hypercastInit = () => {
       detectPrimaryVideo()
         .get()
         .then((video) => {
-          const instr = instrumentVideo(video, videoActor, (event) =>
-            bus.triggerEvent("broadcastStateEvent", event)
+          const instr = instrumentVideo(
+            video,
+            videoActor,
+            syncController,
+            (event) => bus.triggerEvent("broadcastStateEvent", event)
           );
           updateOverlayState({
             videoState: "active; able to control video playback",
@@ -873,6 +1038,13 @@ const hypercastInit = () => {
               "offline; disconnected due to error, attempting to reconnect",
           }),
       });
+      bus.addHandler("triggerStateRequest", () =>
+        protocol.send(
+          JSON.stringify({
+            event: "requestState",
+          })
+        )
+      );
     })
     .catch(logError);
 };
