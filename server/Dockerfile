@@ -1,3 +1,5 @@
+FROM radiansoftware/sleeping-beauty:v4.0.0 AS sleepingd
+
 # EOL: April 2027
 FROM ubuntu:22.04
 
@@ -10,7 +12,13 @@ COPY package.json package-lock.json /src/
 RUN npm ci
 
 COPY server.js /src/
+
+ENV SLEEPING_BEAUTY_COMMAND="HOST=0.0.0.0 PORT=8081 node server.js"
+ENV SLEEPING_BEAUTY_TIMEOUT_SECONDS=3600
+ENV SLEEPING_BEAUTY_COMMAND_PORT=8081
+ENV SLEEPING_BEAUTY_LISTEN_PORT=8080
+
+COPY --from=sleepingd /sleepingd /usr/local/bin/sleepingd
 ENTRYPOINT ["/usr/bin/tini", "--"]
-ENV HOST=0.0.0.0
-CMD ["node", "server.js"]
+CMD ["sleepingd"]
 EXPOSE 8080
