@@ -782,12 +782,44 @@ const showOverlay = ({ updateSyncState }) => {
   // object, kind of like a simple version of React
   const createContents = (state) => {
     log(`Overlay: rendering with state ${JSON.stringify(state)}`);
+    const overlay = document.createElement("div");
+    overlay.style = createStyleString(
+      Object.assign(
+        {},
+        {
+          position: "fixed",
+          width: "200px",
+          height: "100px",
+          background: "lightgray",
+          right: "0",
+          top: "0",
+          "z-index": "10000",
+          margin: "10px",
+          padding: "10px",
+          // Some of these are defaults but we need to make sure they
+          // don't get overridden by some dumb global CSS on some
+          // company's weird streaming site.
+          "font-size": "10px",
+          "font-family": "Roboto, Arial, sans-serif",
+          color: "black",
+          "line-height": "12px",
+          "box-sizing": "unset",
+        },
+        state.overlayExpanded ? {} : { visibility: "hidden" }
+      )
+    );
     const header = document.createElement("b");
     header.innerText = "Hypercast status";
     const websocketState = document.createElement("p");
     websocketState.innerText = `Websocket: ${state.websocketState}`;
+    websocketState.style = createStyleString({
+      margin: "0",
+    });
     const videoState = document.createElement("p");
     videoState.innerText = `Video instrumentation: ${state.videoState}`;
+    videoState.style = createStyleString({
+      margin: "0",
+    });
     const collapseToggle = document.createElement("button");
     collapseToggle.style = createStyleString(
       Object.assign(
@@ -802,6 +834,7 @@ const showOverlay = ({ updateSyncState }) => {
           margin: "10px",
           padding: "0",
           border: "0",
+          "font-size": "13px",
         },
         state.overlayExpanded ? {} : { "background-color": "transparent" }
       )
@@ -865,24 +898,6 @@ const showOverlay = ({ updateSyncState }) => {
       skewElts.push(skewToggle, skewLabel);
     }
     // Put components together.
-    const overlay = document.createElement("div");
-    overlay.style = createStyleString(
-      Object.assign(
-        {},
-        {
-          position: "fixed",
-          width: "200px",
-          height: "100px",
-          background: "lightgray",
-          right: "0",
-          top: "0",
-          "z-index": "10000",
-          margin: "10px",
-          padding: "10px",
-        },
-        state.overlayExpanded ? {} : { visibility: "hidden" }
-      )
-    );
     overlay.replaceChildren(
       header,
       websocketState,
