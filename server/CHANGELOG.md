@@ -5,13 +5,21 @@ The format is based on [Keep a Changelog].
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 
+## 0.0.5
+
+Upgrade to version 4.1.0 of Sleeping Beauty, which fixes a significant
+memory leak.
+
 ## 0.0.4
 
 Enable use of [Sleeping
 Beauty](https://github.com/radian-software/sleeping-beauty) (version
-2.0.1) in provided Docker image, to save on resource utilization. You
+4.0.0) in provided Docker image, to save on resource utilization. You
 can customize the runtime parameters of the container to recover the
 previous behavior, if you wish.
+
+*Errata:* A previous version of these release notes said the version
+of Sleeping Beauty in use by default was 2.0.1, rather than 4.0.0.
 
 ## 0.0.3
 
