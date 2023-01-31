@@ -26,16 +26,16 @@ you will need to update manually.
 **If you use Chrome,** you unfortunately cannot install the extension
 from the Chrome Web Store at the present time, because Google takes
 numerous months with no feedback to "review" all submissions to the
-store.
+store, and has not deigned to "approve" Hypercast.
 
-In Chrome, Hypercast operates in a degraded mode that does not support
-certain streaming sites, and cannot be customized to fix issues that
-come up. This is because Google recently removed support for
-extensions that allow users to customize website behavior, including
-most ad blockers (not surprising, since Google is an ad company and
-makes most of its money by selling access to your personal data).
-Already-published extensions are still runnable for now, but [they
-will all be deleted by Google in
+In Chrome, Hypercast also operates in a degraded mode that does not
+support certain streaming sites, and cannot be customized to fix
+issues that come up. This is because Google recently removed support
+for extensions that allow users to customize website behavior,
+including most ad blockers (not surprising, since Google is an ad
+company and makes most of its money by selling access to your personal
+data). Already-published extensions are still runnable for now, but
+[they will all be deleted by Google in
 mid-2023](https://www.ghacks.net/2021/09/24/manifest-v2-chrome-extensions-will-stop-working-in-june-2023/),
 and it is already impossible to publish new ones. [Numerous complaints
 have been registered since 2019 by many community
