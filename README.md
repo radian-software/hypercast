@@ -23,19 +23,27 @@ Developer Edition](https://www.mozilla.org/en-US/firefox/developer/)
 so you can install it permanently. If installing from GitHub Releases,
 you will need to update manually.
 
-**If you use Chrome,** you unfortunately cannot install the extension
-from the Chrome Web Store at the present time, because Google takes
-numerous months with no feedback to "review" all submissions to the
-store, and has not deigned to "approve" Hypercast.
+**If you use Chrome,** you can install the extension from the [Chrome
+Web
+Store](https://chrome.google.com/webstore/detail/hypercast/obolfbkdpbgbccdngpmgkdohlieajdnm).
+ However, using Chrome is not recommended, because not all
+ functionality is available (see below).
 
-In Chrome, Hypercast also operates in a degraded mode that does not
-support certain streaming sites, and cannot be customized to fix
-issues that come up. This is because Google recently removed support
-for extensions that allow users to customize website behavior,
-including most ad blockers (not surprising, since Google is an ad
-company and makes most of its money by selling access to your personal
-data). Already-published extensions are still runnable for now, but
-[they will all be deleted by Google in
+Alternatively, you can download the latest ZIP file from GitHub
+Releases. To install from GitHub Releases, download the latest ZIP
+file from GitHub Releases and install it by going to
+`chrome://extensions`, enabling developer mode (upper right corner),
+and loading the ZIP file as an unpacked extension. If installing from
+GitHub Releases, you will need to update manually.
+
+In Chrome, Hypercast also in a degraded mode that does not support
+certain streaming sites, and cannot be customized to fix issues that
+come up. This is because Google recently removed support for
+extensions that allow users to customize website behavior, including
+most ad blockers (not surprising, since Google is an ad company and
+makes most of its money by selling access to your personal data).
+Already-published extensions are still runnable for now, but [they
+will all be deleted by Google in
 mid-2023](https://www.ghacks.net/2021/09/24/manifest-v2-chrome-extensions-will-stop-working-in-june-2023/),
 and it is already impossible to publish new ones. [Numerous complaints
 have been registered since 2019 by many community
@@ -48,13 +56,7 @@ and they made sure to leave no available workarounds. [May we suggest
 Firefox instead?](https://contrachrome.com/)
 
 However, if you cannot switch to a less user-hostile browser, you can
-still use Hypercast on a subset of streaming sites. To do this,
-download the latest ZIP file from GitHub Releases and install it by
-going to `chrome://extensions`, enabling developer mode (upper right
-corner), and loading the ZIP file as an unpacked extension.
-Unfortunately, Google does not allow you to enable automatic updates
-for extensions they have not personally approved, so you will have to
-install new updates manually.
+still use Hypercast on a subset of streaming sites.
 
 ### Setup and usage
 
