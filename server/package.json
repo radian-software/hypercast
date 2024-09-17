@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "express": "^4.19.2",
+    "express": "^4.21.0",
     "tinyws": "^0.1.0"
   }
 }
