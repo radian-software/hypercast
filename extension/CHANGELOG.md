@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog].
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 
+## 0.0.12
+
+No user-visible changes. Changed the extension manifest description to
+work around an internal bug in Google's systems.
+
 ## 0.0.11
 
 There are significant internal changes to support using special

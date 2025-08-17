@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Hypercast",
-  "version": "0.0.11",
-  "description": "Simple video synchronization service",
+  "version": "0.0.12",
+  "description": "Watch videos together on any platform",
   "icons": {
     "128": "icon128.png",
     "64": "icon64.png",
